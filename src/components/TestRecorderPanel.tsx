@@ -18,6 +18,7 @@ import { usePanelStore } from '@/lib/store';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Editor from '@monaco-editor/react';
+import * as monaco from 'monaco-editor';
 import {
   Play,
   Square,
@@ -87,7 +88,8 @@ export function TestRecorderPanel() {
   const [result, setResult] = useState("");
   const [isGenerateLoading, setisGenerateLoading] = useState(false);
   const [rightPanelTab, setRightPanelTab] = useState('browser');
-  const [htmlContent, setHtmlContent] = useState('<h1>Sample Test Report</h1><p>This is a sample HTML content that can be rendered in the test report tab.</p>');
+  const [htmlContent, setHtmlContent] = useState('<h1>Sample Test Report</h1><p>This is a sample HTML content that can be rendered in the test report tab.</p><div style="margin: 20px 0;"><h2>Test Results</h2><table border="1" style="border-collapse: collapse; width: 100%;"><tr><th style="padding: 8px; background-color: #f0f0f0;">Test Case</th><th style="padding: 8px; background-color: #f0f0f0;">Status</th><th style="padding: 8px; background-color: #f0f0f0;">Duration</th></tr><tr><td style="padding: 8px;">Login Test</td><td style="padding: 8px; color: green;">✓ Passed</td><td style="padding: 8px;">2.3s</td></tr><tr><td style="padding: 8px;">Form Submission</td><td style="padding: 8px; color: green;">✓ Passed</td><td style="padding: 8px;">1.8s</td></tr><tr><td style="padding: 8px;">Navigation Test</td><td style="padding: 8px; color: red;">✗ Failed</td><td style="padding: 8px;">0.5s</td></tr></table></div>');
+  const [javaCode, setJavaCode] = useState('');
 
   const webviewRef = useRef<HTMLWebViewElement>(null);
   const inputTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -178,6 +180,36 @@ public class AutomatedTest {
         }
     }
 }`;
+
+  // Initialize Java code state
+  useEffect(() => {
+    setJavaCode(sampleJavaCode);
+  }, []);
+
+  // Configure Monaco Editor
+  useEffect(() => {
+    // Configure Monaco Editor for Electron environment
+    if (typeof window !== 'undefined') {
+      // Set the Monaco environment
+      window.MonacoEnvironment = {
+        getWorkerUrl: function (moduleId, label) {
+          if (label === 'json') {
+            return './monaco-editor/esm/vs/language/json/json.worker.js';
+          }
+          if (label === 'css' || label === 'scss' || label === 'less') {
+            return './monaco-editor/esm/vs/language/css/css.worker.js';
+          }
+          if (label === 'html' || label === 'handlebars' || label === 'razor') {
+            return './monaco-editor/esm/vs/language/html/html.worker.js';
+          }
+          if (label === 'typescript' || label === 'javascript') {
+            return './monaco-editor/esm/vs/language/typescript/ts.worker.js';
+          }
+          return './monaco-editor/esm/vs/editor/editor.worker.js';
+        }
+      };
+    }
+  }, []);
 
   // First API mutation
   const initProcessMutation = useMutation({
@@ -614,6 +646,11 @@ const handleGenerate = () => {
     setLeftPanelCollapsed(!isLeftPanelCollapsed);
   };
 
+  const handleEditorMount = (editor: monaco.editor.IStandaloneCodeEditor, monaco: typeof import('monaco-editor')) => {
+    // Editor is mounted and ready
+    console.log('Monaco Editor mounted successfully');
+  };
+
   return (
     <div className="flex h-screen bg-background">
       <PanelGroup direction="horizontal" onLayout={handlePanelResize}>
@@ -982,8 +1019,11 @@ const handleGenerate = () => {
                   <Editor
                     height="100%"
                     defaultLanguage="java"
-                    value={sampleJavaCode}
+                    value={javaCode}
+                    onChange={(value) => setJavaCode(value || '')}
+                    onMount={handleEditorMount}
                     theme="vs-dark"
+                    loading={<div className="flex items-center justify-center h-full">Loading Monaco Editor...</div>}
                     options={{
                       readOnly: false,
                       minimap: { enabled: true },
@@ -996,6 +1036,28 @@ const handleGenerate = () => {
                       lineDecorationsWidth: 10,
                       lineNumbersMinChars: 3,
                       glyphMargin: false,
+                      tabSize: 4,
+                      insertSpaces: true,
+                      detectIndentation: true,
+                      renderLineHighlight: 'line',
+                      selectOnLineNumbers: true,
+                      roundedSelection: false,
+                      readOnlyMessage: { value: '' },
+                      cursorStyle: 'line',
+                      mouseWheelZoom: true,
+                      quickSuggestions: {
+                        other: true,
+                        comments: false,
+                        strings: false
+                      },
+                      parameterHints: {
+                        enabled: true
+                      },
+                      autoClosingBrackets: 'always',
+                      autoClosingQuotes: 'always',
+                      autoSurround: 'languageDefined',
+                      formatOnPaste: true,
+                      formatOnType: true
                     }}
                   />
                 </div>
@@ -1008,11 +1070,11 @@ const handleGenerate = () => {
                     <textarea
                       value={htmlContent}
                       onChange={(e) => setHtmlContent(e.target.value)}
-                      className="w-full h-32 p-2 border rounded-md text-sm font-mono"
+                      className="w-full h-32 p-2 border rounded-md text-sm font-mono bg-background"
                       placeholder="Enter HTML content to render..."
                     />
                   </div>
-                  <div className="border rounded-md h-[calc(100%-180px)] overflow-auto">
+                  <div className="border rounded-md h-[calc(100%-180px)] overflow-auto bg-white">
                     <div 
                       className="p-4 h-full"
                       dangerouslySetInnerHTML={{ __html: htmlContent }}

@@ -19,6 +19,7 @@ export default defineConfig({
   },
   optimizeDeps: {
     exclude: ['lucide-react'],
+    include: ['monaco-editor'],
   },
   define: {
     global: 'globalThis',
@@ -28,4 +29,12 @@ export default defineConfig({
       transformMixedEsModules: true,
     },
   },
+  worker: {
+    format: 'es'
+  },
+  server: {
+    fs: {
+      allow: ['..']
+    }
+  }
 });
