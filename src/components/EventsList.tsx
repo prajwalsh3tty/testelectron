@@ -72,6 +72,16 @@ export function EventsList({ events }: EventsListProps) {
                       Value: "{event.value}"
                     </p>
                   )}
+                  {event.placeholder && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      Placeholder: "{event.placeholder}"
+                    </p>
+                  )}
+                  {event.xpath && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      XPath: {event.xpath}
+                    </p>
+                  )}
                   {event.context && (
                     <p className="text-xs text-muted-foreground truncate">
                       Context: {event.context.type}

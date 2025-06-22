@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Play, Square, Save, Trash2, Globe, Loader2 } from 'lucide-react';
+import { Play, Square, Save, Trash2, Globe } from 'lucide-react';
 
 interface RecordingControlsProps {
   url: string;

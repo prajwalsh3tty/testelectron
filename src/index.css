@@ -127,15 +127,6 @@ button:focus-visible {
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-}
-
 /* Light mode improvements */
 .light {
   --background: 0 0% 98%;
@@ -157,6 +148,15 @@ button:focus-visible {
   --border: 214 32% 91%;
   --input: 214 32% 91%;
   --ring: 221 83% 53%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
 /* Custom animations for smooth panel transitions */
@@ -199,58 +199,14 @@ button:focus-visible {
   background-color: hsl(var(--muted-foreground));
 }
 
-/* Monaco Editor improvements */
-.monaco-editor {
-  border-radius: 8px;
-}
-
-.monaco-editor .margin {
-  background-color: transparent !important;
-}
-
 /* Webview styling */
 webview {
   border-radius: 8px;
   overflow: hidden;
 }
 
-/* Loading states */
-.loading-spinner {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 /* Better focus states */
 .focus-visible:focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
-}
-
-/* Improved button states */
-.btn-loading {
-  position: relative;
-  color: transparent;
-}
-
-.btn-loading::after {
-  content: '';
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  top: 50%;
-  left: 50%;
-  margin-left: -8px;
-  margin-top: -8px;
-  border: 2px solid currentColor;
-  border-radius: 50%;
-  border-right-color: transparent;
-  animation: spin 1s linear infinite;
 }

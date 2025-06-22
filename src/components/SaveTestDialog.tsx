@@ -46,7 +46,8 @@ export function SaveTestDialog({
       updatedAt: Date.now(),
       tags: tags.split(',').map(tag => tag.trim()).filter(Boolean),
       testType,
-      projectId: currentProject.id
+      projectId: currentProject.id,
+      status: 'draft'
     };
 
     testStorage.saveTest(savedTest);
