@@ -19,6 +19,8 @@ import { EventsList } from '@/components/EventsList';
 import { TestStepsList } from '@/components/TestStepsList';
 import { SaveTestDialog } from '@/components/SaveTestDialog';
 import { AITestGenerator } from '@/components/AITestGenerator';
+import { CodeEditor } from '@/components/CodeEditor';
+import { TestReport } from '@/components/TestReport';
 import {
   Play,
   Square,
@@ -30,6 +32,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  Code,
+  FileBarChart,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -44,6 +48,7 @@ export function TestRecorderPanel() {
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [activeRightTab, setActiveRightTab] = useState('browser');
   const webviewRef = useRef<HTMLWebViewElement>(null);
 
   useEffect(() => {
@@ -262,14 +267,43 @@ export function TestRecorderPanel() {
 
         <ResizableHandle withHandle />
 
-        {/* Right Panel - Browser View Only */}
+        {/* Right Panel - Browser View with Tabs */}
         <ResizablePanel defaultSize={50} minSize={30}>
           <div className="h-full flex flex-col bg-background">
-            <BrowserView
-              ref={webviewRef}
-              url={url}
-              onUrlChange={setUrl}
-            />
+            <Tabs value={activeRightTab} onValueChange={setActiveRightTab} className="flex-1 flex flex-col">
+              <div className="border-b bg-card px-4 pt-2">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="browser" className="text-xs">
+                    <Globe className="h-3 w-3 mr-1" />
+                    Browser
+                  </TabsTrigger>
+                  <TabsTrigger value="code" className="text-xs">
+                    <Code className="h-3 w-3 mr-1" />
+                    Code
+                  </TabsTrigger>
+                  <TabsTrigger value="report" className="text-xs">
+                    <FileBarChart className="h-3 w-3 mr-1" />
+                    Report
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              
+              <TabsContent value="browser" className="flex-1 mt-0">
+                <BrowserView
+                  ref={webviewRef}
+                  url={url}
+                  onUrlChange={setUrl}
+                />
+              </TabsContent>
+              
+              <TabsContent value="code" className="flex-1 mt-0">
+                <CodeEditor />
+              </TabsContent>
+              
+              <TabsContent value="report" className="flex-1 mt-0">
+                <TestReport />
+              </TabsContent>
+            </Tabs>
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
