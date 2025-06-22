@@ -17,6 +17,7 @@ import { INJECT_SCRIPT } from '@/lib/inject-script';
 import { usePanelStore } from '@/lib/store';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import Editor from '@monaco-editor/react';
 import {
   Play,
   Square,
@@ -35,7 +36,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   GripVertical,
-  LoaderIcon ,
+  LoaderIcon,
   Zap,
   Activity,
   Settings,
@@ -46,7 +47,9 @@ import {
   BookOpen,
   Folder,
   TestTubeDiagonal,
-  Sparkles
+  Sparkles,
+  FileCode,
+  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -83,10 +86,98 @@ export function TestRecorderPanel() {
   const [showTestTabs, setShowTestTabs] = useState(false);
   const [result, setResult] = useState("");
   const [isGenerateLoading, setisGenerateLoading] = useState(false);
-
+  const [rightPanelTab, setRightPanelTab] = useState('browser');
+  const [htmlContent, setHtmlContent] = useState('<h1>Sample Test Report</h1><p>This is a sample HTML content that can be rendered in the test report tab.</p>');
 
   const webviewRef = useRef<HTMLWebViewElement>(null);
   const inputTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sample Java code for the Code tab
+  const sampleJavaCode = `package com.example.test;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.By;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import java.time.Duration;
+
+public class AutomatedTest {
+    
+    private WebDriver driver;
+    private WebDriverWait wait;
+    
+    @BeforeEach
+    public void setUp() {
+        // Initialize ChromeDriver
+        driver = new ChromeDriver();
+        wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        driver.manage().window().maximize();
+    }
+    
+    @Test
+    public void testUserLogin() {
+        // Navigate to the application
+        driver.get("https://example.com/login");
+        
+        // Find and interact with login elements
+        WebElement usernameField = wait.until(
+            ExpectedConditions.presenceOfElementLocated(By.id("username"))
+        );
+        WebElement passwordField = driver.findElement(By.id("password"));
+        WebElement loginButton = driver.findElement(By.xpath("//button[@type='submit']"));
+        
+        // Perform login actions
+        usernameField.sendKeys("testuser@example.com");
+        passwordField.sendKeys("password123");
+        loginButton.click();
+        
+        // Verify successful login
+        WebElement dashboard = wait.until(
+            ExpectedConditions.presenceOfElementLocated(By.className("dashboard"))
+        );
+        
+        assert dashboard.isDisplayed() : "Dashboard should be visible after login";
+    }
+    
+    @Test
+    public void testFormSubmission() {
+        driver.get("https://example.com/form");
+        
+        // Fill out form fields
+        driver.findElement(By.name("firstName")).sendKeys("John");
+        driver.findElement(By.name("lastName")).sendKeys("Doe");
+        driver.findElement(By.name("email")).sendKeys("john.doe@example.com");
+        
+        // Select dropdown option
+        WebElement dropdown = driver.findElement(By.id("country"));
+        dropdown.click();
+        driver.findElement(By.xpath("//option[@value='US']")).click();
+        
+        // Submit form
+        driver.findElement(By.xpath("//button[contains(text(), 'Submit')]")).click();
+        
+        // Verify success message
+        WebElement successMessage = wait.until(
+            ExpectedConditions.presenceOfElementLocated(
+                By.xpath("//div[contains(@class, 'success')]")
+            )
+        );
+        
+        assert successMessage.getText().contains("Form submitted successfully");
+    }
+    
+    @AfterEach
+    public void tearDown() {
+        if (driver != null) {
+            driver.quit();
+        }
+    }
+}`;
 
   // First API mutation
   const initProcessMutation = useMutation({
@@ -433,7 +524,7 @@ const handleGenerate = () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       tags: [],
-      // status: 'draft',
+      testType: 'Functional',
       projectId: currentProject.id
     };
 
@@ -591,13 +682,6 @@ const handleGenerate = () => {
               <div className="flex-1 overflow-hidden">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
                   {<TabsList className="w-full justify-start border-b rounded-none p-0 h-10 bg-transparent">
-                    {/* <TabsTrigger
-                      value="projects"
-                      className="flex items-center gap-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10"
-                    >
-                      <Folder className="h-3.5 w-3.5" />
-                      Projects
-                    </TabsTrigger> */}
                     {currentProject && (
                       <TabsTrigger
                         value="library"
@@ -623,19 +707,11 @@ const handleGenerate = () => {
                           <List className="h-3.5 w-3.5" />
                           Scenarios
                         </TabsTrigger>
-                        {/* <TabsTrigger
-                          value="test"
-                          className="flex items-center gap-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10"
-                        >
-                          <TestTube2 className="h-3.5 w-3.5" />
-                          Code
-                        </TabsTrigger> */}
                       </>
                     )}
                   </TabsList>}
                   {!isLeftPanelCollapsed && (
                     <>
-                      {/* <Separator /> */}
                       <div className="p-2 space-y-3">
                         {/* Current Project & Test Info */}
                         {currentProject && (
@@ -831,72 +907,10 @@ const handleGenerate = () => {
                                <pre className="text-xs p-2 bg-muted rounded overflow-x-auto">
                                   {result}
                                   </pre>
-                              // steps.map((step, index) => (
-                              //   <Card key={step.id} className="p-3 hover:bg-accent/50 transition-colors">
-                              //     <div className="flex justify-between items-start mb-2">
-                              //       <div className="flex items-center gap-2">
-                              //         <Badge variant="outline" className="text-xs">
-                              //           {index + 1}
-                              //         </Badge>
-                              //         <h3 className="font-medium text-sm">{step.description}</h3>
-                              //       </div>
-                              //       <Button
-                              //         variant="ghost"
-                              //         size="icon"
-                              //         onClick={() => copyToClipboard(step.code)}
-                              //         className="h-6 w-6"
-                              //       >
-                              //         <Copy className="h-3 w-3" />
-                              //       </Button>
-                              //     </div>
-                              //     <pre className="text-xs p-2 bg-muted rounded overflow-x-auto">
-                              //       <code>{step.code}</code>
-                              //     </pre>
-                              //   </Card>
-                              
-                              // ))
                             )}
                           </div>
                         </ScrollArea>
                       </TabsContent>
-
-                      {/* <TabsContent value="test" className="flex-1 p-3 m-0 overflow-hidden">
-                        <ScrollArea className="h-full">
-                          {steps.length > 0 ? (
-                            <Card className="p-3">
-                              <div className="flex justify-between items-center mb-3">
-                                <h3 className="font-medium flex items-center text-sm">
-                                  <Code2 className="mr-2 h-4 w-4" />
-                                  Generated Test
-                                </h3>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => copyToClipboard(steps.map(s => s.code).join('\n'))}
-                                  className="h-6 w-6"
-                                >
-                                  <Copy className="h-3 w-3" />
-                                </Button>
-                              </div>
-                              <pre className="text-xs p-3 bg-muted rounded overflow-x-auto">
-                                <code>
-                                  {`describe('Generated Test', () => {
-  it('performs recorded actions', () => {
-${steps.map(s => '    ' + s.code).join('\n')}
-  })
-})`}
-                                </code>
-                              </pre>
-                            </Card>
-                          ) : (
-                            <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
-                              <TestTube2 className="h-8 w-8 mb-2 opacity-50" />
-                              <p className="text-sm">No test code generated yet</p>
-                              <p className="text-xs">Record steps to generate test code</p>
-                            </div>
-                          )}
-                        </ScrollArea>
-                      </TabsContent> */}
                     </>
                   )}
                 </Tabs>
@@ -913,7 +927,7 @@ ${steps.map(s => '    ' + s.code).join('\n')}
           </PanelResizeHandle>
         )}
 
-        {/* Right Panel - Browser View */}
+        {/* Right Panel - Tabbed View */}
         <Panel>
           <div className="h-full relative">
             {isLeftPanelCollapsed && (
@@ -928,13 +942,85 @@ ${steps.map(s => '    ' + s.code).join('\n')}
                 </Button>
               </div>
             )}
-            <webview
-              ref={webviewRef}
-              src="about:blank"
-              className="w-full h-full"
-              webpreferences="allowtransparency=true,nodeIntegration=false, contextIsolation=false, webSecurity=false, allowRunningInsecureContent=true"
-              // partition="persist:mypartition"
-            />
+            
+            <Tabs value={rightPanelTab} onValueChange={setRightPanelTab} className="h-full flex flex-col">
+              <TabsList className="w-full justify-start border-b rounded-none p-0 h-10 bg-background/80 backdrop-blur-sm">
+                <TabsTrigger
+                  value="browser"
+                  className="flex items-center gap-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10"
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  Browser
+                </TabsTrigger>
+                <TabsTrigger
+                  value="code"
+                  className="flex items-center gap-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10"
+                >
+                  <FileCode className="h-3.5 w-3.5" />
+                  Code
+                </TabsTrigger>
+                <TabsTrigger
+                  value="report"
+                  className="flex items-center gap-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Test Report
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="browser" className="flex-1 m-0">
+                <webview
+                  ref={webviewRef}
+                  src="about:blank"
+                  className="w-full h-full"
+                  webpreferences="allowtransparency=true,nodeIntegration=false, contextIsolation=false, webSecurity=false, allowRunningInsecureContent=true"
+                />
+              </TabsContent>
+
+              <TabsContent value="code" className="flex-1 m-0">
+                <div className="h-full">
+                  <Editor
+                    height="100%"
+                    defaultLanguage="java"
+                    value={sampleJavaCode}
+                    theme="vs-dark"
+                    options={{
+                      readOnly: false,
+                      minimap: { enabled: true },
+                      fontSize: 14,
+                      lineNumbers: 'on',
+                      scrollBeyondLastLine: false,
+                      automaticLayout: true,
+                      wordWrap: 'on',
+                      folding: true,
+                      lineDecorationsWidth: 10,
+                      lineNumbersMinChars: 3,
+                      glyphMargin: false,
+                    }}
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="report" className="flex-1 m-0">
+                <div className="h-full p-4">
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2">HTML Content:</label>
+                    <textarea
+                      value={htmlContent}
+                      onChange={(e) => setHtmlContent(e.target.value)}
+                      className="w-full h-32 p-2 border rounded-md text-sm font-mono"
+                      placeholder="Enter HTML content to render..."
+                    />
+                  </div>
+                  <div className="border rounded-md h-[calc(100%-180px)] overflow-auto">
+                    <div 
+                      className="p-4 h-full"
+                      dangerouslySetInnerHTML={{ __html: htmlContent }}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </Panel>
       </PanelGroup>
@@ -968,7 +1054,6 @@ ${steps.map(s => '    ' + s.code).join('\n')}
                     Element Details
                   </h4>
                   <div className="space-y-2 text-sm">
-                    {/* <p><span className="font-medium">Selector:</span> <code className="text-xs bg-muted px-1 rounded">{selectedEvent.details.selector}</code></p> */}
                     <p><span className="font-medium text-wrap whitespace-break-spaces">Xpath:</span> <code className="text-xs bg-muted px-1 rounded  break-all whitespace-pre-wrap">{selectedEvent.details.xpath}</code></p>
 
                     {selectedEvent.details.value && (
@@ -1000,19 +1085,3 @@ ${steps.map(s => '    ' + s.code).join('\n')}
     </div>
   );
 }
-// http://172.18.104.22:5001//api/TestNova/initprocess
-
-
-
-// {
-//   "requirements": "",
-//   "activities": [
-//     {
-//       "pageUrl": "",
-//       "action": [
-//         {action} in {tagName} in {xpath},
-
- 
-//       ]
-//     }
-//   ]
