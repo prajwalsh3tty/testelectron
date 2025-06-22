@@ -17,6 +17,8 @@ import { INJECT_SCRIPT } from '@/lib/inject-script';
 import { usePanelStore } from '@/lib/store';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import Editor from '@monaco-editor/react';
+import { useTheme } from 'next-themes';
 import {
   Play,
   Square,
@@ -35,7 +37,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   GripVertical,
-  LoaderIcon ,
+  LoaderIcon,
   Zap,
   Activity,
   Settings,
@@ -46,7 +48,9 @@ import {
   BookOpen,
   Folder,
   TestTubeDiagonal,
-  Sparkles
+  Sparkles,
+  FileText,
+  BarChart3
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -83,8 +87,318 @@ export function TestRecorderPanel() {
   const [showTestTabs, setShowTestTabs] = useState(false);
   const [result, setResult] = useState("");
   const [isGenerateLoading, setisGenerateLoading] = useState(false);
+  const [rightPanelTab, setRightPanelTab] = useState('browser');
+  const [javaCode, setJavaCode] = useState(`package com.example.tests;
 
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.By;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.testng.annotations.Test;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterMethod;
 
+public class SampleTest {
+    private WebDriver driver;
+    
+    @BeforeMethod
+    public void setUp() {
+        // Set up ChromeDriver
+        System.setProperty("webdriver.chrome.driver", "path/to/chromedriver");
+        driver = new ChromeDriver();
+        driver.manage().window().maximize();
+    }
+    
+    @Test
+    public void testLogin() {
+        // Navigate to login page
+        driver.get("https://example.com/login");
+        
+        // Find username field and enter credentials
+        WebElement usernameField = driver.findElement(By.id("username"));
+        usernameField.sendKeys("testuser@example.com");
+        
+        // Find password field and enter password
+        WebElement passwordField = driver.findElement(By.id("password"));
+        passwordField.sendKeys("password123");
+        
+        // Click login button
+        WebElement loginButton = driver.findElement(By.xpath("//button[@type='submit']"));
+        loginButton.click();
+        
+        // Verify successful login
+        WebElement welcomeMessage = driver.findElement(By.className("welcome-message"));
+        assert welcomeMessage.isDisplayed() : "Login failed - welcome message not found";
+        
+        System.out.println("Login test completed successfully!");
+    }
+    
+    @Test
+    public void testSearchFunctionality() {
+        // Navigate to search page
+        driver.get("https://example.com/search");
+        
+        // Find search input and enter search term
+        WebElement searchInput = driver.findElement(By.name("search"));
+        searchInput.sendKeys("selenium automation");
+        
+        // Click search button
+        WebElement searchButton = driver.findElement(By.xpath("//button[contains(text(), 'Search')]"));
+        searchButton.click();
+        
+        // Verify search results are displayed
+        WebElement searchResults = driver.findElement(By.className("search-results"));
+        assert searchResults.isDisplayed() : "Search results not displayed";
+        
+        System.out.println("Search test completed successfully!");
+    }
+    
+    @AfterMethod
+    public void tearDown() {
+        // Close the browser
+        if (driver != null) {
+            driver.quit();
+        }
+    }
+}`);
+  const [testReportHtml, setTestReportHtml] = useState(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Execution Report</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .passed { color: #28a745; }
+        .failed { color: #dc3545; }
+        .skipped { color: #ffc107; }
+        .total { color: #007bff; }
+        .content {
+            padding: 30px;
+        }
+        .test-suite {
+            margin-bottom: 30px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .suite-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            font-weight: 600;
+        }
+        .test-case {
+            padding: 15px 20px;
+            border-bottom: 1px solid #f1f3f4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .test-case:last-child {
+            border-bottom: none;
+        }
+        .test-name {
+            font-weight: 500;
+        }
+        .test-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-passed {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status-skipped {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .execution-time {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Test Execution Report</h1>
+            <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number total">24</div>
+                <div class="stat-label">Total Tests</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number passed">20</div>
+                <div class="stat-label">Passed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number failed">3</div>
+                <div class="stat-label">Failed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number skipped">1</div>
+                <div class="stat-label">Skipped</div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="test-suite">
+                <div class="suite-header">Login Test Suite</div>
+                <div class="test-case">
+                    <div>
+                        <div class="test-name">testValidLogin</div>
+                        <div class="execution-time">Execution time: 2.3s</div>
+                    </div>
+                    <span class="test-status status-passed">Passed</span>
+                </div>
+                <div class="test-case">
+                    <div>
+                        <div class="test-name">testInvalidCredentials</div>
+                        <div class="execution-time">Execution time: 1.8s</div>
+                    </div>
+                    <span class="test-status status-passed">Passed</span>
+                </div>
+                <div class="test-case">
+                    <div>
+                        <div class="test-name">testEmptyFields</div>
+                        <div class="execution-time">Execution time: 1.2s</div>
+                    </div>
+                    <span class="test-status status-failed">Failed</span>
+                </div>
+            </div>
+            
+            <div class="test-suite">
+                <div class="suite-header">Search Functionality Suite</div>
+                <div class="test-case">
+                    <div>
+                        <div class="test-name">testBasicSearch</div>
+                        <div class="execution-time">Execution time: 3.1s</div>
+                    </div>
+                    <span class="test-status status-passed">Passed</span>
+                </div>
+                <div class="test-case">
+                    <div>
+                        <div class="test-name">testAdvancedSearch</div>
+                        <div class="execution-time">Execution time: 4.2s</div>
+                    </div>
+                    <span class="test-status status-passed">Passed</span>
+                </div>
+                <div class="test-case">
+                    <div>
+                        <div class="test-name">testSearchFilters</div>
+                        <div class="execution-time">Execution time: 2.7s</div>
+                    </div>
+                    <span class="test-status status-skipped">Skipped</span>
+                </div>
+            </div>
+            
+            <div class="test-suite">
+                <div class="suite-header">User Management Suite</div>
+                <div class="test-case">
+                    <div>
+                        <div class="test-name">testCreateUser</div>
+                        <div class="execution-time">Execution time: 2.9s</div>
+                    </div>
+                    <span class="test-status status-passed">Passed</span>
+                </div>
+                <div class="test-case">
+                    <div>
+                        <div class="test-name">testUpdateUserProfile</div>
+                        <div class="execution-time">Execution time: 3.5s</div>
+                    </div>
+                    <span class="test-status status-failed">Failed</span>
+                </div>
+                <div class="test-case">
+                    <div>
+                        <div class="test-name">testDeleteUser</div>
+                        <div class="execution-time">Execution time: 1.9s</div>
+                    </div>
+                    <span class="test-status status-passed">Passed</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Report generated by testNova Test Automation Framework</p>
+        </div>
+    </div>
+</body>
+</html>
+  `);
+
+  const { theme } = useTheme();
   const webviewRef = useRef<HTMLWebViewElement>(null);
   const inputTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -433,7 +747,7 @@ const handleGenerate = () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       tags: [],
-      // status: 'draft',
+      testType: 'Functional',
       projectId: currentProject.id
     };
 
@@ -591,13 +905,6 @@ const handleGenerate = () => {
               <div className="flex-1 overflow-hidden">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
                   {<TabsList className="w-full justify-start border-b rounded-none p-0 h-10 bg-transparent">
-                    {/* <TabsTrigger
-                      value="projects"
-                      className="flex items-center gap-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10"
-                    >
-                      <Folder className="h-3.5 w-3.5" />
-                      Projects
-                    </TabsTrigger> */}
                     {currentProject && (
                       <TabsTrigger
                         value="library"
@@ -623,19 +930,11 @@ const handleGenerate = () => {
                           <List className="h-3.5 w-3.5" />
                           Scenarios
                         </TabsTrigger>
-                        {/* <TabsTrigger
-                          value="test"
-                          className="flex items-center gap-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10"
-                        >
-                          <TestTube2 className="h-3.5 w-3.5" />
-                          Code
-                        </TabsTrigger> */}
                       </>
                     )}
                   </TabsList>}
                   {!isLeftPanelCollapsed && (
                     <>
-                      {/* <Separator /> */}
                       <div className="p-2 space-y-3">
                         {/* Current Project & Test Info */}
                         {currentProject && (
@@ -831,72 +1130,10 @@ const handleGenerate = () => {
                                <pre className="text-xs p-2 bg-muted rounded overflow-x-auto">
                                   {result}
                                   </pre>
-                              // steps.map((step, index) => (
-                              //   <Card key={step.id} className="p-3 hover:bg-accent/50 transition-colors">
-                              //     <div className="flex justify-between items-start mb-2">
-                              //       <div className="flex items-center gap-2">
-                              //         <Badge variant="outline" className="text-xs">
-                              //           {index + 1}
-                              //         </Badge>
-                              //         <h3 className="font-medium text-sm">{step.description}</h3>
-                              //       </div>
-                              //       <Button
-                              //         variant="ghost"
-                              //         size="icon"
-                              //         onClick={() => copyToClipboard(step.code)}
-                              //         className="h-6 w-6"
-                              //       >
-                              //         <Copy className="h-3 w-3" />
-                              //       </Button>
-                              //     </div>
-                              //     <pre className="text-xs p-2 bg-muted rounded overflow-x-auto">
-                              //       <code>{step.code}</code>
-                              //     </pre>
-                              //   </Card>
-                              
-                              // ))
                             )}
                           </div>
                         </ScrollArea>
                       </TabsContent>
-
-                      {/* <TabsContent value="test" className="flex-1 p-3 m-0 overflow-hidden">
-                        <ScrollArea className="h-full">
-                          {steps.length > 0 ? (
-                            <Card className="p-3">
-                              <div className="flex justify-between items-center mb-3">
-                                <h3 className="font-medium flex items-center text-sm">
-                                  <Code2 className="mr-2 h-4 w-4" />
-                                  Generated Test
-                                </h3>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => copyToClipboard(steps.map(s => s.code).join('\n'))}
-                                  className="h-6 w-6"
-                                >
-                                  <Copy className="h-3 w-3" />
-                                </Button>
-                              </div>
-                              <pre className="text-xs p-3 bg-muted rounded overflow-x-auto">
-                                <code>
-                                  {`describe('Generated Test', () => {
-  it('performs recorded actions', () => {
-${steps.map(s => '    ' + s.code).join('\n')}
-  })
-})`}
-                                </code>
-                              </pre>
-                            </Card>
-                          ) : (
-                            <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
-                              <TestTube2 className="h-8 w-8 mb-2 opacity-50" />
-                              <p className="text-sm">No test code generated yet</p>
-                              <p className="text-xs">Record steps to generate test code</p>
-                            </div>
-                          )}
-                        </ScrollArea>
-                      </TabsContent> */}
                     </>
                   )}
                 </Tabs>
@@ -913,7 +1150,7 @@ ${steps.map(s => '    ' + s.code).join('\n')}
           </PanelResizeHandle>
         )}
 
-        {/* Right Panel - Browser View */}
+        {/* Right Panel - Tabbed View */}
         <Panel>
           <div className="h-full relative">
             {isLeftPanelCollapsed && (
@@ -928,13 +1165,124 @@ ${steps.map(s => '    ' + s.code).join('\n')}
                 </Button>
               </div>
             )}
-            <webview
-              ref={webviewRef}
-              src="about:blank"
-              className="w-full h-full"
-              webpreferences="allowtransparency=true,nodeIntegration=false, contextIsolation=false, webSecurity=false, allowRunningInsecureContent=true"
-              // partition="persist:mypartition"
-            />
+            
+            <Tabs value={rightPanelTab} onValueChange={setRightPanelTab} className="h-full flex flex-col">
+              <div className="border-b bg-background/80 backdrop-blur-sm">
+                <TabsList className="w-full justify-start border-b-0 rounded-none p-0 h-10 bg-transparent">
+                  <TabsTrigger
+                    value="browser"
+                    className="flex items-center gap-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10"
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                    Browser
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="code"
+                    className="flex items-center gap-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10"
+                  >
+                    <Code2 className="h-3.5 w-3.5" />
+                    Code
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="report"
+                    className="flex items-center gap-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10"
+                  >
+                    <BarChart3 className="h-3.5 w-3.5" />
+                    Test Report
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="browser" className="flex-1 m-0">
+                <webview
+                  ref={webviewRef}
+                  src="about:blank"
+                  className="w-full h-full"
+                  webpreferences="allowtransparency=true,nodeIntegration=false, contextIsolation=false, webSecurity=false, allowRunningInsecureContent=true"
+                />
+              </TabsContent>
+
+              <TabsContent value="code" className="flex-1 m-0">
+                <div className="h-full flex flex-col">
+                  <div className="p-3 border-b bg-background/80 backdrop-blur-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Code2 className="h-4 w-4" />
+                        <span className="text-sm font-medium">Java Test Code</span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(javaCode)}
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <Editor
+                      height="100%"
+                      defaultLanguage="java"
+                      value={javaCode}
+                      onChange={(value) => setJavaCode(value || '')}
+                      theme={theme === 'dark' ? 'vs-dark' : 'light'}
+                      options={{
+                        minimap: { enabled: false },
+                        fontSize: 14,
+                        lineNumbers: 'on',
+                        roundedSelection: false,
+                        scrollBeyondLastLine: false,
+                        automaticLayout: true,
+                        tabSize: 4,
+                        insertSpaces: true,
+                        wordWrap: 'on',
+                        folding: true,
+                        lineDecorationsWidth: 10,
+                        lineNumbersMinChars: 3,
+                        glyphMargin: false,
+                      }}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="report" className="flex-1 m-0">
+                <div className="h-full flex flex-col">
+                  <div className="p-3 border-b bg-background/80 backdrop-blur-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4" />
+                        <span className="text-sm font-medium">Test Execution Report</span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Create a new window to show the report
+                          const newWindow = window.open('', '_blank');
+                          if (newWindow) {
+                            newWindow.document.write(testReportHtml);
+                            newWindow.document.close();
+                          }
+                        }}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Open in New Window
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <iframe
+                      srcDoc={testReportHtml}
+                      className="w-full h-full border-0"
+                      title="Test Report"
+                      sandbox="allow-same-origin allow-scripts"
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </Panel>
       </PanelGroup>
@@ -968,7 +1316,6 @@ ${steps.map(s => '    ' + s.code).join('\n')}
                     Element Details
                   </h4>
                   <div className="space-y-2 text-sm">
-                    {/* <p><span className="font-medium">Selector:</span> <code className="text-xs bg-muted px-1 rounded">{selectedEvent.details.selector}</code></p> */}
                     <p><span className="font-medium text-wrap whitespace-break-spaces">Xpath:</span> <code className="text-xs bg-muted px-1 rounded  break-all whitespace-pre-wrap">{selectedEvent.details.xpath}</code></p>
 
                     {selectedEvent.details.value && (
@@ -1000,19 +1347,3 @@ ${steps.map(s => '    ' + s.code).join('\n')}
     </div>
   );
 }
-// http://172.18.104.22:5001//api/TestNova/initprocess
-
-
-
-// {
-//   "requirements": "",
-//   "activities": [
-//     {
-//       "pageUrl": "",
-//       "action": [
-//         {action} in {tagName} in {xpath},
-
- 
-//       ]
-//     }
-//   ]
