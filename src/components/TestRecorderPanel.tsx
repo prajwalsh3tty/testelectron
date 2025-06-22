@@ -18,6 +18,7 @@ import { RecordingControls } from '@/components/RecordingControls';
 import { EventsList } from '@/components/EventsList';
 import { TestStepsList } from '@/components/TestStepsList';
 import { SaveTestDialog } from '@/components/SaveTestDialog';
+import { AITestGenerator } from '@/components/AITestGenerator';
 import {
   Play,
   Square,
@@ -28,6 +29,7 @@ import {
   TestTube2,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -41,6 +43,7 @@ export function TestRecorderPanel() {
   const [showTestLibrary, setShowTestLibrary] = useState(false);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const webviewRef = useRef<HTMLWebViewElement>(null);
 
   useEffect(() => {
@@ -138,6 +141,38 @@ export function TestRecorderPanel() {
     setCurrentProject(null);
   };
 
+  const handleGenerateAITest = async (description: string, testType: 'Monkey' | 'Functional') => {
+    if (!currentProject) {
+      toast.error('Please select a project first');
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    try {
+      // Simulate AI generation with realistic delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Generate AI test based on description and type
+      const aiGeneratedTest = await generateAITestScenario(description, testType, url);
+      
+      // Add generated events to recorder
+      testRecorder.clearEvents();
+      setEvents([]);
+      
+      aiGeneratedTest.events.forEach(event => {
+        testRecorder.addEvent(event);
+      });
+      
+      setEvents(testRecorder.getEvents());
+      toast.success('AI test scenario generated successfully');
+    } catch (error) {
+      console.error('AI generation failed:', error);
+      toast.error('Failed to generate AI test scenario');
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
   const testSteps = testRecorder.generateTest();
 
   return (
@@ -185,6 +220,15 @@ export function TestRecorderPanel() {
               onClearEvents={handleClearEvents}
               onSaveTest={handleSaveTest}
               eventsCount={events.length}
+              currentProject={currentProject}
+            />
+
+            <Separator />
+
+            {/* AI Test Generator */}
+            <AITestGenerator
+              onGenerateTest={handleGenerateAITest}
+              isGenerating={isGeneratingAI}
               currentProject={currentProject}
             />
 
@@ -254,4 +298,193 @@ export function TestRecorderPanel() {
       />
     </div>
   );
+}
+
+// AI Test Generation Function
+async function generateAITestScenario(
+  description: string, 
+  testType: 'Monkey' | 'Functional', 
+  url: string
+): Promise<{ events: RecordedEvent[] }> {
+  // Simulate API call to AI service
+  const prompt = `Generate a ${testType.toLowerCase()} test scenario for: ${description}
+  Target URL: ${url}
+  
+  Please create realistic user interactions including clicks, form inputs, and navigation.`;
+
+  // Mock AI-generated test scenarios based on description
+  const scenarios = {
+    login: [
+      {
+        type: EventType.Click,
+        selector: '#login-button',
+        xpath: '/html[1]/body[1]/div[1]/nav[1]/button[1]',
+        tagName: 'button',
+        timestamp: Date.now(),
+        value: null,
+        text: 'Login',
+        context: null
+      },
+      {
+        type: EventType.Input,
+        selector: 'input[name="email"]',
+        xpath: '/html[1]/body[1]/div[1]/form[1]/input[1]',
+        tagName: 'input',
+        timestamp: Date.now() + 1000,
+        value: 'test@example.com',
+        placeholder: 'Enter your email',
+        text: '',
+        context: null
+      },
+      {
+        type: EventType.Input,
+        selector: 'input[name="password"]',
+        xpath: '/html[1]/body[1]/div[1]/form[1]/input[2]',
+        tagName: 'input',
+        timestamp: Date.now() + 2000,
+        value: 'password123',
+        placeholder: 'Enter your password',
+        text: '',
+        context: null
+      },
+      {
+        type: EventType.Click,
+        selector: 'button[type="submit"]',
+        xpath: '/html[1]/body[1]/div[1]/form[1]/button[1]',
+        tagName: 'button',
+        timestamp: Date.now() + 3000,
+        value: null,
+        text: 'Sign In',
+        context: null
+      }
+    ],
+    form: [
+      {
+        type: EventType.Click,
+        selector: '#contact-form',
+        xpath: '/html[1]/body[1]/div[1]/section[1]/form[1]',
+        tagName: 'form',
+        timestamp: Date.now(),
+        value: null,
+        text: 'Contact Form',
+        context: null
+      },
+      {
+        type: EventType.Input,
+        selector: 'input[name="firstName"]',
+        xpath: '/html[1]/body[1]/div[1]/form[1]/input[1]',
+        tagName: 'input',
+        timestamp: Date.now() + 1000,
+        value: 'John',
+        placeholder: 'First Name',
+        text: '',
+        context: null
+      },
+      {
+        type: EventType.Input,
+        selector: 'input[name="lastName"]',
+        xpath: '/html[1]/body[1]/div[1]/form[1]/input[2]',
+        tagName: 'input',
+        timestamp: Date.now() + 2000,
+        value: 'Doe',
+        placeholder: 'Last Name',
+        text: '',
+        context: null
+      },
+      {
+        type: EventType.Input,
+        selector: 'textarea[name="message"]',
+        xpath: '/html[1]/body[1]/div[1]/form[1]/textarea[1]',
+        tagName: 'textarea',
+        timestamp: Date.now() + 3000,
+        value: 'This is a test message generated by AI.',
+        placeholder: 'Your message',
+        text: '',
+        context: null
+      },
+      {
+        type: EventType.Submit,
+        selector: 'form#contact-form',
+        xpath: '/html[1]/body[1]/div[1]/form[1]',
+        tagName: 'form',
+        timestamp: Date.now() + 4000,
+        value: null,
+        text: '',
+        context: null
+      }
+    ],
+    navigation: [
+      {
+        type: EventType.Click,
+        selector: 'nav a[href="/about"]',
+        xpath: '/html[1]/body[1]/nav[1]/a[2]',
+        tagName: 'a',
+        timestamp: Date.now(),
+        value: null,
+        text: 'About',
+        context: null
+      },
+      {
+        type: EventType.Click,
+        selector: 'nav a[href="/services"]',
+        xpath: '/html[1]/body[1]/nav[1]/a[3]',
+        tagName: 'a',
+        timestamp: Date.now() + 2000,
+        value: null,
+        text: 'Services',
+        context: null
+      },
+      {
+        type: EventType.Click,
+        selector: 'nav a[href="/contact"]',
+        xpath: '/html[1]/body[1]/nav[1]/a[4]',
+        tagName: 'a',
+        timestamp: Date.now() + 4000,
+        value: null,
+        text: 'Contact',
+        context: null
+      }
+    ]
+  };
+
+  // Determine scenario based on description keywords
+  let selectedScenario = scenarios.navigation; // default
+  
+  if (description.toLowerCase().includes('login') || description.toLowerCase().includes('auth')) {
+    selectedScenario = scenarios.login;
+  } else if (description.toLowerCase().includes('form') || description.toLowerCase().includes('contact')) {
+    selectedScenario = scenarios.form;
+  } else if (description.toLowerCase().includes('nav') || description.toLowerCase().includes('menu')) {
+    selectedScenario = scenarios.navigation;
+  }
+
+  // For Monkey testing, add more random interactions
+  if (testType === 'Monkey') {
+    const monkeyEvents = [
+      {
+        type: EventType.Click,
+        selector: 'button:nth-child(1)',
+        xpath: '/html[1]/body[1]/div[1]/button[1]',
+        tagName: 'button',
+        timestamp: Date.now() + 5000,
+        value: null,
+        text: 'Random Button',
+        context: null
+      },
+      {
+        type: EventType.Input,
+        selector: 'input[type="text"]:first',
+        xpath: '/html[1]/body[1]/div[1]/input[1]',
+        tagName: 'input',
+        timestamp: Date.now() + 6000,
+        value: 'Random text input',
+        placeholder: 'Enter text',
+        text: '',
+        context: null
+      }
+    ];
+    selectedScenario = [...selectedScenario, ...monkeyEvents];
+  }
+
+  return { events: selectedScenario as RecordedEvent[] };
 }

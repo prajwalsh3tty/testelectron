@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { AISettings } from '@/components/AISettings';
 import { Play, Square, Save, Trash2, Globe } from 'lucide-react';
 
 interface RecordingControlsProps {
@@ -30,15 +31,18 @@ export function RecordingControls({
   return (
     <Card className="border-0 shadow-none">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Globe className="h-5 w-5" />
-          Test Recorder
-          {isRecording && (
-            <Badge variant="destructive" className="ml-2 animate-pulse">
-              Recording
-            </Badge>
-          )}
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            Test Recorder
+            {isRecording && (
+              <Badge variant="destructive" className="ml-2 animate-pulse">
+                Recording
+              </Badge>
+            )}
+          </CardTitle>
+          <AISettings />
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
