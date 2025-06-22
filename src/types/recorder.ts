@@ -18,6 +18,7 @@ export interface RecordedEvent {
   tagName: string;
   timestamp: number;
   value: string | null;
+  placeholder?: string | null;
   text: string;
   context: IframeContext | null;
 }
@@ -41,6 +42,7 @@ export interface SavedTest {
   tags: string[];
   testType: "Monkey" | "Functional";
   projectId: string;
+  status?: "draft" | "ready" | "archived";
 }
 
 export interface TestCollection {
