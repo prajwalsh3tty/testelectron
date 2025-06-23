@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PanelLeftOpen } from 'lucide-react';
 
@@ -19,6 +19,9 @@ export function BrowserPanel({
   setIsLoading,
   onWebviewLoad 
 }: BrowserPanelProps) {
+  const [isScriptInjected, setIsScriptInjected] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState('');
+  const lastInjectedUrl = useRef<string>('');
   
   useEffect(() => {
     const webview = webviewRef.current;
@@ -26,21 +29,47 @@ export function BrowserPanel({
 
     const handleLoadStart = () => {
       setIsLoading(true);
+      // Reset injection status when navigation starts
+      setIsScriptInjected(false);
+      lastInjectedUrl.current = '';
     };
 
     const handleLoadStop = () => {
       setIsLoading(false);
-      onWebviewLoad?.();
+      const newUrl = webview.src;
+      setCurrentUrl(newUrl);
+      
+      // Only inject script if URL has changed and we haven't injected for this URL
+      if (newUrl && newUrl !== lastInjectedUrl.current && newUrl !== 'about:blank') {
+        setTimeout(() => {
+          onWebviewLoad?.();
+        }, 500); // Small delay to ensure page is fully loaded
+      }
     };
 
     const handleDomReady = () => {
       setIsLoading(false);
-      onWebviewLoad?.();
+      const newUrl = webview.src;
+      setCurrentUrl(newUrl);
+      
+      // Only inject script if URL has changed and we haven't injected for this URL
+      if (newUrl && newUrl !== lastInjectedUrl.current && newUrl !== 'about:blank') {
+        setTimeout(() => {
+          onWebviewLoad?.();
+        }, 100);
+      }
     };
 
     const handleFailLoad = (e: any) => {
       console.error('Webview failed to load:', e);
       setIsLoading(false);
+      setIsScriptInjected(false);
+    };
+
+    const handleNavigationStart = () => {
+      // Reset injection status when navigation starts
+      setIsScriptInjected(false);
+      lastInjectedUrl.current = '';
     };
 
     // Add event listeners
@@ -48,6 +77,7 @@ export function BrowserPanel({
     webview.addEventListener('did-stop-loading', handleLoadStop);
     webview.addEventListener('dom-ready', handleDomReady);
     webview.addEventListener('did-fail-load', handleFailLoad);
+    webview.addEventListener('did-start-navigation', handleNavigationStart);
 
     return () => {
       // Cleanup event listeners
@@ -55,8 +85,32 @@ export function BrowserPanel({
       webview.removeEventListener('did-stop-loading', handleLoadStop);
       webview.removeEventListener('dom-ready', handleDomReady);
       webview.removeEventListener('did-fail-load', handleFailLoad);
+      webview.removeEventListener('did-start-navigation', handleNavigationStart);
     };
   }, [webviewRef, setIsLoading, onWebviewLoad]);
+
+  // Expose injection control methods
+  useEffect(() => {
+    if (webviewRef.current) {
+      // Add custom methods to webview ref for external control
+      (webviewRef.current as any).injectScript = () => {
+        const webview = webviewRef.current;
+        if (webview && webview.src && webview.src !== 'about:blank' && !isScriptInjected) {
+          const currentPageUrl = webview.src;
+          
+          // Only inject if we haven't already injected for this URL
+          if (currentPageUrl !== lastInjectedUrl.current) {
+            onWebviewLoad?.();
+            setIsScriptInjected(true);
+            lastInjectedUrl.current = currentPageUrl;
+          }
+        }
+      };
+
+      (webviewRef.current as any).isScriptInjected = () => isScriptInjected;
+      (webviewRef.current as any).getCurrentUrl = () => currentUrl;
+    }
+  }, [isScriptInjected, currentUrl, onWebviewLoad]);
 
   return (
     <div className="h-full relative">

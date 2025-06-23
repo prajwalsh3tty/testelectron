@@ -92,6 +92,8 @@ export function TestRecorderPanel() {
 
   const webviewRef = useRef<HTMLWebViewElement>(null);
   const inputTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isScriptInjectedRef = useRef(false);
+  const lastInjectedUrlRef = useRef<string>('');
 
   // First API mutation
   const initProcessMutation = useMutation({
@@ -196,18 +198,43 @@ const handleGenerate = () => {
   const lastEventRef = useRef<{ selector: string; xpath: string; type: string; value: string | null; timestamp: number } | null>(null);
 
   const injectRecorderScript = () => {
-    if (webviewRef.current) {
-      console.log('Injecting script into webview');
-      webviewRef.current.executeJavaScript(`
+    const webview = webviewRef.current;
+    if (!webview) return;
+
+    const currentUrl = webview.src;
+    
+    // Prevent re-injection for the same URL
+    if (currentUrl === lastInjectedUrlRef.current && isScriptInjectedRef.current) {
+      console.log('Script already injected for this URL, skipping injection');
+      return;
+    }
+
+    // Don't inject into blank pages
+    if (!currentUrl || currentUrl === 'about:blank') {
+      console.log('Skipping script injection for blank page');
+      return;
+    }
+
+    console.log('Injecting script into webview for URL:', currentUrl);
+    
+    try {
+      webview.executeJavaScript(`
         try {
           ${INJECT_SCRIPT}
-          // Verify injection
-          console.log('Script injection verification');
-          document.body.style.border = '2px solid green';
+          // Mark injection as successful
+          console.log('Script injection completed for: ${currentUrl}');
         } catch (error) {
           console.error('Script injection failed:', error);
         }
       `);
+      
+      // Mark as injected for this URL
+      isScriptInjectedRef.current = true;
+      lastInjectedUrlRef.current = currentUrl;
+      
+      console.log('Script injection initiated successfully');
+    } catch (error) {
+      console.error('Failed to execute script injection:', error);
     }
   };
 
@@ -302,18 +329,32 @@ const handleGenerate = () => {
     });
   };
 
-  // Handle webview load completion
+  // Handle webview load completion - IMPROVED
   const handleWebviewLoad = () => {
-    // Add navigation event to timeline
-    const navigationEvent: TimelineEvent = {
-      id: `nav-${Date.now()}`,
-      type: 'navigation',
-      title: `Navigated to ${webviewRef.current?.src}`,
-      timestamp: Date.now(),
-      icon: getEventIcon('navigation')
-    };
-    setTimelineEvents(prev => [navigationEvent, ...prev]);
-    setTimeout(injectRecorderScript, 1000);
+    const webview = webviewRef.current;
+    if (!webview) return;
+
+    const currentUrl = webview.src;
+    
+    // Only add navigation event for real URLs, not blank pages
+    if (currentUrl && currentUrl !== 'about:blank') {
+      // Add navigation event to timeline
+      const navigationEvent: TimelineEvent = {
+        id: `nav-${Date.now()}`,
+        type: 'navigation',
+        title: `Navigated to ${currentUrl}`,
+        timestamp: Date.now(),
+        icon: getEventIcon('navigation')
+      };
+      setTimelineEvents(prev => [navigationEvent, ...prev]);
+      
+      // Inject script only if recording and not already injected for this URL
+      if (isRecording && currentUrl !== lastInjectedUrlRef.current) {
+        setTimeout(() => {
+          injectRecorderScript();
+        }, 1000); // Increased delay to ensure page is fully loaded
+      }
+    }
   };
 
   useEffect(() => {
@@ -375,7 +416,19 @@ const handleGenerate = () => {
     setTimelineEvents([]);
     lastEventRef.current = null;
     setIsRecording(true);
-    injectRecorderScript();
+    
+    // Reset injection tracking
+    isScriptInjectedRef.current = false;
+    lastInjectedUrlRef.current = '';
+    
+    // Inject script if webview has content
+    const webview = webviewRef.current;
+    if (webview && webview.src && webview.src !== 'about:blank') {
+      setTimeout(() => {
+        injectRecorderScript();
+      }, 500);
+    }
+    
     toast.success('Recording started');
   };
 
@@ -476,6 +529,11 @@ const handleGenerate = () => {
     if (test.url && webviewRef.current) {
       const formattedUrl = test.url.startsWith('http') ? test.url : `https://${test.url}`;
       setIsLoading(true);
+      
+      // Reset injection tracking for new URL
+      isScriptInjectedRef.current = false;
+      lastInjectedUrlRef.current = '';
+      
       webviewRef.current.src = formattedUrl;
     }
   };
@@ -496,6 +554,11 @@ const handleGenerate = () => {
       const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
       console.log('Navigating to:', formattedUrl);
       setIsLoading(true);
+      
+      // Reset injection tracking for new URL
+      isScriptInjectedRef.current = false;
+      lastInjectedUrlRef.current = '';
+      
       webviewRef.current.src = formattedUrl;
     }
   };
