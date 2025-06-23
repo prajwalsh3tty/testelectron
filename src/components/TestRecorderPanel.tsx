@@ -915,83 +915,77 @@ const handleGenerate = () => {
           </PanelResizeHandle>
         )}
 
-        {/* Right Panel - Persistent Webview with Tab Overlay */}
+        {/* Right Panel - Simple Tab System */}
         <Panel>
-          <div className="h-full relative">
-            {/* Persistent Webview - Always rendered */}
-            <div className={`absolute inset-0 ${rightPanelTab === 'browser' ? 'z-10' : 'z-0'}`}>
-              <BrowserPanel 
-                webviewRef={webviewRef}
-                isLeftPanelCollapsed={isLeftPanelCollapsed}
-                toggleLeftPanel={toggleLeftPanel}
-                isLoading={isLoading}
-                setIsLoading={setIsLoading}
-                onWebviewLoad={handleWebviewLoad}
-              />
+          <div className="h-full flex flex-col">
+            {/* Tab Navigation */}
+            <div className="border-b bg-background/95 backdrop-blur-sm">
+              <div className="flex">
+                <button
+                  onClick={() => setRightPanelTab('browser')}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    rightPanelTab === 'browser'
+                      ? 'border-primary text-primary bg-primary/5'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                  }`}
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  Browser
+                </button>
+                <button
+                  onClick={() => setRightPanelTab('code')}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    rightPanelTab === 'code'
+                      ? 'border-primary text-primary bg-primary/5'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                  }`}
+                >
+                  <FileCode className="h-3.5 w-3.5" />
+                  Code
+                </button>
+                <button
+                  onClick={() => setRightPanelTab('report')}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    rightPanelTab === 'report'
+                      ? 'border-primary text-primary bg-primary/5'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                  }`}
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Test Report
+                </button>
+              </div>
             </div>
 
-            {/* Tab System Overlay */}
-            <div className="absolute inset-0 z-20 flex flex-col bg-background">
-              {/* Tab Navigation */}
-              <div className="border-b bg-background/95 backdrop-blur-sm">
-                <div className="flex">
-                  <button
-                    onClick={() => setRightPanelTab('browser')}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                      rightPanelTab === 'browser'
-                        ? 'border-primary text-primary bg-primary/5'
-                        : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50'
-                    }`}
-                  >
-                    <Globe className="h-3.5 w-3.5" />
-                    Browser
-                  </button>
-                  <button
-                    onClick={() => setRightPanelTab('code')}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                      rightPanelTab === 'code'
-                        ? 'border-primary text-primary bg-primary/5'
-                        : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50'
-                    }`}
-                  >
-                    <FileCode className="h-3.5 w-3.5" />
-                    Code
-                  </button>
-                  <button
-                    onClick={() => setRightPanelTab('report')}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                      rightPanelTab === 'report'
-                        ? 'border-primary text-primary bg-primary/5'
-                        : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50'
-                    }`}
-                  >
-                    <FileText className="h-3.5 w-3.5" />
-                    Test Report
-                  </button>
+            {/* Tab Content */}
+            <div className="flex-1 relative">
+              {/* Browser Tab */}
+              {rightPanelTab === 'browser' && (
+                <div className="absolute inset-0">
+                  <BrowserPanel 
+                    webviewRef={webviewRef}
+                    isLeftPanelCollapsed={isLeftPanelCollapsed}
+                    toggleLeftPanel={toggleLeftPanel}
+                    isLoading={isLoading}
+                    setIsLoading={setIsLoading}
+                    onWebviewLoad={handleWebviewLoad}
+                  />
                 </div>
-              </div>
+              )}
 
-              {/* Tab Content */}
-              <div className="flex-1 relative">
-                {/* Browser Tab - Transparent overlay when active */}
-                {rightPanelTab === 'browser' && (
-                  <div className="absolute inset-0 pointer-events-none" />
-                )}
+              {/* Code Tab */}
+              {rightPanelTab === 'code' && (
+                <div className="absolute inset-0 bg-background">
+                  <CodePanel isActive={true} />
+                </div>
+              )}
 
-                {/* Code Tab */}
-                {rightPanelTab === 'code' && (
-                  <div className="absolute inset-0 bg-background">
-                    <CodePanel isActive={true} />
-                  </div>
-                )}
-
-                {/* Report Tab */}
-                {rightPanelTab === 'report' && (
-                  <div className="absolute inset-0 bg-background">
-                    <TestReportPanel isActive={true} />
-                  </div>
-                )}
-              </div>
+              {/* Report Tab */}
+              {rightPanelTab === 'report' && (
+                <div className="absolute inset-0 bg-background">
+                  <TestReportPanel isActive={true} />
+                </div>
+              )}
             </div>
           </div>
         </Panel>
