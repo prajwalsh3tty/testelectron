@@ -1,14 +1,6 @@
-import { useRef, useEffect, useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import * as monaco from 'monaco-editor';
 import { LoaderIcon } from 'lucide-react';
-
-// Import worker files
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
-import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
-import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
-import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
 
 interface CodePanelProps {
   isActive: boolean;
@@ -16,9 +8,10 @@ interface CodePanelProps {
 
 export function CodePanel({ isActive }: CodePanelProps) {
   const [javaCode, setJavaCode] = useState('');
-  const [monacoEditor, setMonacoEditor] = useState<monaco.editor.IStandaloneCodeEditor | null>(null);
-  const [isMonacoLoading, setIsMonacoLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<any>(null);
   const { theme } = useTheme();
 
   // Sample Java code
@@ -113,130 +106,170 @@ public class AutomatedTest {
     setJavaCode(sampleJavaCode);
   }, []);
 
-  // Initialize Monaco Editor only when tab is active
+  // Initialize Monaco Editor with memory-efficient configuration
   useEffect(() => {
     const initializeMonaco = async () => {
-      if (editorContainerRef.current && isActive && !monacoEditor) {
-        try {
-          setIsMonacoLoading(true);
-          
-          // Configure Monaco environment for Electron with local workers
-          self.MonacoEnvironment = {
-            getWorker: function (workerId, label) {
-              switch (label) {
-                case 'json':
-                  return new jsonWorker();
-                case 'css':
-                case 'scss':
-                case 'less':
-                  return new cssWorker();
-                case 'html':
-                case 'handlebars':
-                case 'razor':
-                  return new htmlWorker();
-                case 'typescript':
-                case 'javascript':
-                  return new tsWorker();
-                default:
-                  return new editorWorker();
+      if (!isActive || !editorContainerRef.current || editorRef.current) {
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // Dynamic import to reduce initial bundle size
+        const monaco = await import('monaco-editor');
+
+        // Configure Monaco environment with minimal workers
+        if (!window.MonacoEnvironment) {
+          window.MonacoEnvironment = {
+            getWorkerUrl: function (moduleId, label) {
+              // Use minimal worker configuration to reduce memory usage
+              if (label === 'typescript' || label === 'javascript') {
+                return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
+                  self.MonacoEnvironment = {
+                    baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/'
+                  };
+                  importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/language/typescript/ts.worker.js');
+                `)}`;
               }
+              return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
+                self.MonacoEnvironment = {
+                  baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/'
+                };
+                importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.worker.js');
+              `)}`;
             }
           };
-
-          // Create the editor
-          const editor = monaco.editor.create(editorContainerRef.current, {
-            value: javaCode,
-            language: 'java',
-            theme: theme === 'dark' ? 'vs-dark' : 'vs',
-            automaticLayout: true,
-            minimap: { enabled: true },
-            fontSize: 14,
-            lineNumbers: 'on',
-            scrollBeyondLastLine: false,
-            wordWrap: 'on',
-            folding: true,
-            lineDecorationsWidth: 10,
-            lineNumbersMinChars: 3,
-            glyphMargin: false,
-            tabSize: 4,
-            insertSpaces: true,
-            detectIndentation: true,
-            renderLineHighlight: 'line',
-            selectOnLineNumbers: true,
-            roundedSelection: false,
-            cursorStyle: 'line',
-            mouseWheelZoom: true,
-            quickSuggestions: {
-              other: true,
-              comments: false,
-              strings: false
-            },
-            parameterHints: {
-              enabled: true
-            },
-            autoClosingBrackets: 'always',
-            autoClosingQuotes: 'always',
-            autoSurround: 'languageDefined',
-            formatOnPaste: true,
-            formatOnType: true
-          });
-
-          // Listen for content changes
-          editor.onDidChangeModelContent(() => {
-            setJavaCode(editor.getValue());
-          });
-
-          setMonacoEditor(editor);
-          setIsMonacoLoading(false);
-          
-          console.log('Monaco Editor initialized successfully');
-        } catch (error) {
-          console.error('Error initializing Monaco Editor:', error);
-          setIsMonacoLoading(false);
         }
+
+        // Create editor with memory-efficient options
+        const editor = monaco.editor.create(editorContainerRef.current, {
+          value: javaCode,
+          language: 'java',
+          theme: theme === 'dark' ? 'vs-dark' : 'vs',
+          automaticLayout: true,
+          
+          // Memory-efficient options
+          minimap: { enabled: false }, // Disable minimap to save memory
+          fontSize: 14,
+          lineNumbers: 'on',
+          scrollBeyondLastLine: false,
+          wordWrap: 'on',
+          folding: true,
+          lineDecorationsWidth: 10,
+          lineNumbersMinChars: 3,
+          glyphMargin: false,
+          tabSize: 4,
+          insertSpaces: true,
+          renderLineHighlight: 'line',
+          selectOnLineNumbers: true,
+          roundedSelection: false,
+          cursorStyle: 'line',
+          mouseWheelZoom: false, // Disable zoom to prevent memory issues
+          
+          // Disable resource-intensive features
+          quickSuggestions: false,
+          parameterHints: { enabled: false },
+          suggestOnTriggerCharacters: false,
+          acceptSuggestionOnEnter: 'off',
+          tabCompletion: 'off',
+          wordBasedSuggestions: 'off',
+          
+          // Reduce rendering overhead
+          renderWhitespace: 'none',
+          renderControlCharacters: false,
+          renderIndentGuides: false,
+          
+          // Limit model options
+          maxTokenizationLineLength: 1000,
+          
+          // Basic editing features only
+          autoClosingBrackets: 'always',
+          autoClosingQuotes: 'always',
+          autoSurround: 'languageDefined',
+          formatOnPaste: false,
+          formatOnType: false
+        });
+
+        // Listen for content changes
+        editor.onDidChangeModelContent(() => {
+          setJavaCode(editor.getValue());
+        });
+
+        editorRef.current = editor;
+        setIsLoading(false);
+        
+        console.log('Monaco Editor initialized successfully with memory-efficient configuration');
+      } catch (error) {
+        console.error('Error initializing Monaco Editor:', error);
+        setError('Failed to load code editor. Using fallback text area.');
+        setIsLoading(false);
       }
     };
 
-    if (isActive && !monacoEditor) {
-      // Small delay to ensure the container is rendered
-      setTimeout(initializeMonaco, 100);
+    if (isActive) {
+      // Add delay to ensure container is ready
+      const timer = setTimeout(initializeMonaco, 200);
+      return () => clearTimeout(timer);
     }
-  }, [isActive, theme, monacoEditor, javaCode]);
+  }, [isActive, theme, javaCode]);
 
   // Update Monaco theme when theme changes
   useEffect(() => {
-    if (monacoEditor) {
+    if (editorRef.current) {
+      const monaco = require('monaco-editor');
       monaco.editor.setTheme(theme === 'dark' ? 'vs-dark' : 'vs');
     }
-  }, [theme, monacoEditor]);
+  }, [theme]);
 
   // Cleanup Monaco editor
   useEffect(() => {
     return () => {
-      if (monacoEditor) {
-        monacoEditor.dispose();
-        setMonacoEditor(null);
+      if (editorRef.current) {
+        editorRef.current.dispose();
+        editorRef.current = null;
       }
     };
   }, []);
 
   // Handle layout when tab becomes active
   useEffect(() => {
-    if (isActive && monacoEditor) {
-      // Trigger layout recalculation when tab becomes active
+    if (isActive && editorRef.current) {
       setTimeout(() => {
-        monacoEditor.layout();
+        editorRef.current.layout();
       }, 100);
     }
-  }, [isActive, monacoEditor]);
+  }, [isActive]);
+
+  if (!isActive) {
+    return null;
+  }
+
+  // Fallback to textarea if Monaco fails
+  if (error) {
+    return (
+      <div className="h-full p-4">
+        <div className="mb-4 p-3 bg-yellow-100 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700 rounded-md">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200">{error}</p>
+        </div>
+        <textarea
+          value={javaCode}
+          onChange={(e) => setJavaCode(e.target.value)}
+          className="w-full h-[calc(100%-80px)] p-4 border rounded-md font-mono text-sm bg-background text-foreground resize-none"
+          placeholder="Enter Java code here..."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full relative">
-      {isMonacoLoading && (
+      {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
           <div className="flex items-center gap-2">
             <LoaderIcon className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Loading Monaco Editor...</span>
+            <span className="text-sm">Loading Code Editor...</span>
           </div>
         </div>
       )}

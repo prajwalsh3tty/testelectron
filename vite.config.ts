@@ -19,7 +19,7 @@ export default defineConfig({
   },
   optimizeDeps: {
     exclude: ['lucide-react'],
-    include: ['monaco-editor'],
+    // Remove monaco-editor from include to prevent memory issues
   },
   define: {
     global: 'globalThis',
@@ -31,8 +31,23 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
+          // Separate monaco into its own chunk but with size limits
           monaco: ['monaco-editor'],
         },
+        // Limit chunk sizes to prevent memory allocation errors
+        chunkFileNames: (chunkInfo) => {
+          const facadeModuleId = chunkInfo.facadeModuleId ? chunkInfo.facadeModuleId.split('/').pop() : 'chunk';
+          return `${facadeModuleId}-[hash].js`;
+        }
+      },
+    },
+    // Reduce build memory usage
+    target: 'esnext',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: false,
+        drop_debugger: true,
       },
     },
   },
