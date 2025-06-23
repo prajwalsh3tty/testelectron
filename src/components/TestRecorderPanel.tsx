@@ -51,7 +51,9 @@ import {
   TestTubeDiagonal,
   Sparkles,
   FileCode,
-  FileText
+  FileText,
+  Sun,
+  ArrowLeft
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -1020,7 +1022,7 @@ const handleGenerate = () => {
                     Element Details
                   </h4>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium text-wrap whitespace-break-spaces">Xpath:</span> <code className="text-xs bg-muted px-1 rounded  break-all whitespace-pre-wrap">{selectedEvent.details.xpath}</code></p>
+                    <p><span className="font-medium text-wrap whitespace-break-spaces">Xpath:</span> <code className="text-xs bg-muted p-1 rounded  break-all whitespace-pre-wrap">{selectedEvent.details.xpath}</code></p>
 
                     {selectedEvent.details.value && (
                       <p><span className="font-medium">Value:</span> {selectedEvent.details.value}</p>
