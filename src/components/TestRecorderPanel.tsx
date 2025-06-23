@@ -635,7 +635,7 @@ const handleGenerate = () => {
                     variant="ghost"
                     size="icon"
                     onClick={toggleLeftPanel}
-                    className="shrink-0 h-8 w-8"
+                    className="shrink-0 h-8 w-8 theme-button-outline"
                   >
                     {isLeftPanelCollapsed ? (
                       <PanelLeftOpen className="h-4 w-4" />
@@ -649,7 +649,7 @@ const handleGenerate = () => {
                          <h1 className="text-lg font-semibold">testNova </h1>
                      <TestTubeDiagonal className="mt-[11px]" /> <Sparkles />
                       </div>
-                      <Badge variant={isRecording ? "destructive" : "secondary"} className="ml-2">
+                      <Badge variant={isRecording ? "destructive" : "secondary"} className="ml-2 theme-badge-secondary">
                         {isRecording ? (
                           <div className="flex items-center gap-1">
                             <Activity className="h-3 w-3 animate-pulse" />
@@ -665,7 +665,7 @@ const handleGenerate = () => {
                 {!isLeftPanelCollapsed && (
                   <div className="flex items-center gap-1">
                     <ThemeToggle />
-                    <Button onClick={toggleDevTools} variant="ghost" size="icon" className="h-8 w-8">
+                    <Button onClick={toggleDevTools} variant="ghost" size="icon" className="h-8 w-8 theme-button-outline">
                       <Bug className="h-4 w-4" />
                     </Button>
                   </div>
@@ -680,7 +680,7 @@ const handleGenerate = () => {
                     {currentProject && (
                       <TabsTrigger
                         value="library"
-                        className="flex items-center gap-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10"
+                        className="flex items-center gap-2 theme-tab data-[state=active]:theme-tab-active rounded-none h-10"
                       >
                         <FolderOpen className="h-3.5 w-3.5" />
                         Library
@@ -690,14 +690,14 @@ const handleGenerate = () => {
                       <>
                         <TabsTrigger
                           value="timeline"
-                          className="flex items-center gap-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10"
+                          className="flex items-center gap-2 theme-tab data-[state=active]:theme-tab-active rounded-none h-10"
                         >
                           <Clock className="h-3.5 w-3.5" />
                           Timeline
                         </TabsTrigger>
                         <TabsTrigger
                           value="scenarios"
-                          className="flex items-center gap-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10"
+                          className="flex items-center gap-2 theme-tab data-[state=active]:theme-tab-active rounded-none h-10"
                         >
                           <List className="h-3.5 w-3.5" />
                           Scenarios
@@ -710,7 +710,7 @@ const handleGenerate = () => {
                       <div className="p-2 space-y-3">
                         {/* Current Project & Test Info */}
                         {currentProject && (
-                          <div className="p-2 bg-primary/5 border border-primary/20 rounded-lg">
+                          <div className="p-2 bg-primary/5 border border-primary/20 rounded-lg theme-card">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <div className={`w-4 h-4 rounded ${currentProject.color || 'bg-blue-500'} flex items-center justify-center text-white text-xs font-semibold`}>
@@ -737,7 +737,7 @@ const handleGenerate = () => {
                                 variant="default"
                                 disabled={isLoading}
                                 size="sm"
-                                className="flex-1"
+                                className="flex-1 theme-button-primary"
                               >
                                 <Play className="mr-2 h-4 w-4" />
                                 Start Recording
@@ -758,6 +758,7 @@ const handleGenerate = () => {
                               onClick={handleClearRecording}
                               variant="outline"
                               size="sm"
+                              className="theme-button-outline"
                             >
                               <RotateCcw className="h-4 w-4" />
                             </Button>
@@ -766,6 +767,7 @@ const handleGenerate = () => {
                               variant="outline"
                               size="sm"
                               disabled={steps.length === 0 || !currentProject}
+                              className="theme-button-outline"
                             >
                               <Save className="h-4 w-4" />
                             </Button>
@@ -773,6 +775,7 @@ const handleGenerate = () => {
                               onClick={handleGenerate}
                               variant="default"
                               disabled={steps.length === 0 || !currentProject || isLoading||isGenerateLoading}
+                              className="theme-button-primary"
                             >
                              {isGenerateLoading ?<> Generating <LoaderIcon className="animate-spin ml-2 h-4 w-4" /></> : <> Generate <Sparkles className="ml-2 h-4 w-4" /></>}
                             </Button>
@@ -786,7 +789,7 @@ const handleGenerate = () => {
                               value={url}
                               onChange={(e) => setUrl(e.target.value)}
                               placeholder="Enter URL to test (e.g., example.com)"
-                              className="flex-1 h-8"
+                              className="flex-1 h-8 theme-input"
                               onKeyDown={(e) => e.key === 'Enter' && navigateWebview()}
                             />
                             <Button
@@ -794,6 +797,7 @@ const handleGenerate = () => {
                               variant="secondary"
                               disabled={isLoading || !url.trim()}
                               size="sm"
+                              className="theme-button-secondary"
                             >
                               <Globe className="h-4 w-4" />
                             </Button>
@@ -848,7 +852,7 @@ const handleGenerate = () => {
                                   key={event.id}
                                   className="relative group"
                                 >
-                                  <div className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer"
+                                  <div className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer theme-card"
                                     onClick={() => {
                                       if (event.details) {
                                         setSelectedEvent(event);
@@ -866,7 +870,7 @@ const handleGenerate = () => {
                                           {new Date(event.timestamp).toLocaleTimeString()}
                                         </span>
                                       </div>
-                                      <Badge variant="outline" className="text-xs">
+                                      <Badge variant="outline" className="text-xs theme-badge-outline">
                                         {event.type}
                                       </Badge>
                                     </div>
@@ -894,7 +898,7 @@ const handleGenerate = () => {
                                 <p className="text-xs">Record interactions and generate to see tests</p>
                               </div>
                             ) : (
-                               <pre className="text-xs p-2 bg-muted rounded overflow-x-auto">
+                               <pre className="text-xs p-2 bg-muted rounded overflow-x-auto theme-muted">
                                   {result}
                                   </pre>
                             )}
@@ -925,10 +929,8 @@ const handleGenerate = () => {
               <div className="flex">
                 <button
                   onClick={() => setRightPanelTab('browser')}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                    rightPanelTab === 'browser'
-                      ? 'border-primary text-primary bg-primary/5'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors theme-tab ${
+                    rightPanelTab === 'browser' ? 'theme-tab-active' : ''
                   }`}
                 >
                   <Globe className="h-3.5 w-3.5" />
@@ -936,10 +938,8 @@ const handleGenerate = () => {
                 </button>
                 <button
                   onClick={() => setRightPanelTab('code')}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                    rightPanelTab === 'code'
-                      ? 'border-primary text-primary bg-primary/5'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors theme-tab ${
+                    rightPanelTab === 'code' ? 'theme-tab-active' : ''
                   }`}
                 >
                   <FileCode className="h-3.5 w-3.5" />
@@ -947,10 +947,8 @@ const handleGenerate = () => {
                 </button>
                 <button
                   onClick={() => setRightPanelTab('report')}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                    rightPanelTab === 'report'
-                      ? 'border-primary text-primary bg-primary/5'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors theme-tab ${
+                    rightPanelTab === 'report' ? 'theme-tab-active' : ''
                   }`}
                 >
                   <FileText className="h-3.5 w-3.5" />
@@ -995,7 +993,7 @@ const handleGenerate = () => {
 
       {/* Event Details Modal */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl theme-card">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5" />
@@ -1022,7 +1020,7 @@ const handleGenerate = () => {
                     Element Details
                   </h4>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium text-wrap whitespace-break-spaces">Xpath:</span> <code className="text-xs bg-muted p-1 rounded  break-all whitespace-pre-wrap">{selectedEvent.details.xpath}</code></p>
+                    <p><span className="font-medium text-wrap whitespace-break-spaces">Xpath:</span> <code className="text-xs bg-muted p-1 rounded  break-all whitespace-pre-wrap theme-muted">{selectedEvent.details.xpath}</code></p>
 
                     {selectedEvent.details.value && (
                       <p><span className="font-medium">Value:</span> {selectedEvent.details.value}</p>
@@ -1042,7 +1040,7 @@ const handleGenerate = () => {
                   <div className="space-y-2 text-sm">
                     <p><span className="font-medium">Context Type:</span> {selectedEvent.details.context.type}</p>
                     <p><span className="font-medium">Source:</span> {selectedEvent.details.context.src}</p>
-                    <p><span className="font-medium">Context Selector:</span> <code className="text-xs bg-muted px-1 rounded">{selectedEvent.details.context.selector}</code></p>
+                    <p><span className="font-medium">Context Selector:</span> <code className="text-xs bg-muted px-1 rounded theme-muted">{selectedEvent.details.context.selector}</code></p>
                   </div>
                 </div>
               )}

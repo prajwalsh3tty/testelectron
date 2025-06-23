@@ -99,6 +99,7 @@ button:focus-visible {
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
   }
+  
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
@@ -136,7 +137,7 @@ button:focus-visible {
   }
 }
 
-/* Enhanced light mode contrast improvements */
+/* Custom animations for smooth panel transitions */
 @layer utilities {
   .panel-transition {
     transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -152,68 +153,109 @@ button:focus-visible {
     opacity: 1;
   }
 
-  /* Light mode specific improvements */
-  .light {
-    /* Improve text contrast in light mode */
-    --foreground: 222.2 84% 4.9%;
-    --muted-foreground: 215.4 16.3% 35%;
-    
-    /* Better border contrast */
-    --border: 214.3 31.8% 85%;
-    --input: 214.3 31.8% 85%;
-    
-    /* Enhanced card contrast */
-    --card: 0 0% 98%;
-    --accent: 210 40% 94%;
-    
-    /* Improved button contrast */
-    --secondary: 210 40% 92%;
-    --muted: 210 40% 92%;
+  /* Force theme-aware button and tab styling */
+  .theme-button {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--border));
   }
 
-  /* Better contrast for light mode buttons and interactive elements */
-  .light .bg-card {
-    background-color: hsl(0 0% 98%);
-    border-color: hsl(214.3 31.8% 85%);
+  .theme-button:hover {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
   }
 
-  .light .bg-accent\/50 {
-    background-color: hsl(210 40% 90%);
+  .theme-button-primary {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
   }
 
-  .light .text-muted-foreground {
-    color: hsl(215.4 16.3% 35%);
+  .theme-button-primary:hover {
+    background-color: hsl(var(--primary) / 0.9);
   }
 
-  .light .border-border\/50 {
-    border-color: hsl(214.3 31.8% 80%);
+  .theme-button-secondary {
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
   }
 
-  /* Enhanced hover states for light mode */
-  .light .hover\:bg-accent\/50:hover {
-    background-color: hsl(210 40% 88%);
+  .theme-button-secondary:hover {
+    background-color: hsl(var(--secondary) / 0.8);
   }
 
-  .light .hover\:bg-accent\/80:hover {
-    background-color: hsl(210 40% 85%);
+  .theme-button-outline {
+    background-color: transparent;
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--border));
   }
 
-  /* Better shadow for light mode */
-  .light .shadow-lg {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+  .theme-button-outline:hover {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
   }
 
-  .light .shadow-md {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.15), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+  /* Tab styling with proper theme support */
+  .theme-tab {
+    color: hsl(var(--muted-foreground));
+    border-bottom: 2px solid transparent;
+    background-color: transparent;
   }
 
-  /* Improve backdrop blur contrast */
-  .light .bg-background\/80 {
-    background-color: hsl(0 0% 100% / 0.9);
+  .theme-tab:hover {
+    color: hsl(var(--foreground));
+    background-color: hsl(var(--accent) / 0.5);
   }
 
-  .light .bg-card\/50 {
-    background-color: hsl(0 0% 98% / 0.8);
+  .theme-tab-active {
+    color: hsl(var(--primary));
+    border-bottom-color: hsl(var(--primary));
+    background-color: hsl(var(--primary) / 0.05);
+  }
+
+  /* Card and panel theming */
+  .theme-card {
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    border-color: hsl(var(--border));
+  }
+
+  .theme-card:hover {
+    background-color: hsl(var(--accent) / 0.5);
+  }
+
+  /* Muted background theming */
+  .theme-muted {
+    background-color: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Input theming */
+  .theme-input {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--input));
+  }
+
+  .theme-input:focus {
+    border-color: hsl(var(--ring));
+    box-shadow: 0 0 0 1px hsl(var(--ring));
+  }
+
+  /* Badge theming */
+  .theme-badge {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+
+  .theme-badge-secondary {
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+  }
+
+  .theme-badge-outline {
+    background-color: transparent;
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--border));
   }
 }
 
@@ -240,11 +282,25 @@ button:focus-visible {
   background-color: hsl(var(--muted-foreground));
 }
 
-/* Light mode scrollbar improvements */
-.light .scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: hsl(214.3 31.8% 75%);
+/* Ensure proper contrast in both themes */
+.light {
+  --foreground: 222.2 84% 4.9%;
+  --muted-foreground: 215.4 16.3% 35%;
+  --border: 214.3 31.8% 85%;
+  --input: 214.3 31.8% 85%;
+  --card: 0 0% 98%;
+  --accent: 210 40% 94%;
+  --secondary: 210 40% 92%;
+  --muted: 210 40% 92%;
 }
 
-.light .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(215.4 16.3% 55%);
+.dark {
+  --foreground: 210 40% 98%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --card: 222.2 84% 4.9%;
+  --accent: 217.2 32.6% 17.5%;
+  --secondary: 217.2 32.6% 17.5%;
+  --muted: 217.2 32.6% 17.5%;
 }
