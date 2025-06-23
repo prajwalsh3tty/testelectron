@@ -3,6 +3,13 @@ import { useTheme } from 'next-themes';
 import * as monaco from 'monaco-editor';
 import { LoaderIcon } from 'lucide-react';
 
+// Import worker files
+import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
+import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
+import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
+import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
+import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
+
 interface CodePanelProps {
   isActive: boolean;
 }
@@ -113,47 +120,26 @@ public class AutomatedTest {
         try {
           setIsMonacoLoading(true);
           
-          // Configure Monaco environment for Electron
+          // Configure Monaco environment for Electron with local workers
           self.MonacoEnvironment = {
-            getWorkerUrl: function (moduleId, label) {
-              if (label === 'json') {
-                return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
-                  self.MonacoEnvironment = {
-                    baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/'
-                  };
-                  importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/language/json/json.worker.js');
-                `)}`;
+            getWorker: function (workerId, label) {
+              switch (label) {
+                case 'json':
+                  return new jsonWorker();
+                case 'css':
+                case 'scss':
+                case 'less':
+                  return new cssWorker();
+                case 'html':
+                case 'handlebars':
+                case 'razor':
+                  return new htmlWorker();
+                case 'typescript':
+                case 'javascript':
+                  return new tsWorker();
+                default:
+                  return new editorWorker();
               }
-              if (label === 'css' || label === 'scss' || label === 'less') {
-                return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
-                  self.MonacoEnvironment = {
-                    baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/'
-                  };
-                  importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/language/css/css.worker.js');
-                `)}`;
-              }
-              if (label === 'html' || label === 'handlebars' || label === 'razor') {
-                return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
-                  self.MonacoEnvironment = {
-                    baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/'
-                  };
-                  importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/language/html/html.worker.js');
-                `)}`;
-              }
-              if (label === 'typescript' || label === 'javascript') {
-                return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
-                  self.MonacoEnvironment = {
-                    baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/'
-                  };
-                  importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/language/typescript/ts.worker.js');
-                `)}`;
-              }
-              return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
-                self.MonacoEnvironment = {
-                  baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/'
-                };
-                importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.worker.js');
-              `)}`;
             }
           };
 
