@@ -28,6 +28,13 @@ export default defineConfig({
     commonjsOptions: {
       transformMixedEsModules: true,
     },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          monaco: ['monaco-editor'],
+        },
+      },
+    },
   },
   worker: {
     format: 'es'

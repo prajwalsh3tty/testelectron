@@ -17,8 +17,8 @@ import { INJECT_SCRIPT } from '@/lib/inject-script';
 import { usePanelStore } from '@/lib/store';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import Editor from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
+import { useTheme } from 'next-themes';
 import {
   Play,
   Square,
@@ -90,9 +90,13 @@ export function TestRecorderPanel() {
   const [rightPanelTab, setRightPanelTab] = useState('browser');
   const [htmlContent, setHtmlContent] = useState('<h1>Sample Test Report</h1><p>This is a sample HTML content that can be rendered in the test report tab.</p><div style="margin: 20px 0;"><h2>Test Results</h2><table border="1" style="border-collapse: collapse; width: 100%;"><tr><th style="padding: 8px; background-color: #f0f0f0;">Test Case</th><th style="padding: 8px; background-color: #f0f0f0;">Status</th><th style="padding: 8px; background-color: #f0f0f0;">Duration</th></tr><tr><td style="padding: 8px;">Login Test</td><td style="padding: 8px; color: green;">✓ Passed</td><td style="padding: 8px;">2.3s</td></tr><tr><td style="padding: 8px;">Form Submission</td><td style="padding: 8px; color: green;">✓ Passed</td><td style="padding: 8px;">1.8s</td></tr><tr><td style="padding: 8px;">Navigation Test</td><td style="padding: 8px; color: red;">✗ Failed</td><td style="padding: 8px;">0.5s</td></tr></table></div>');
   const [javaCode, setJavaCode] = useState('');
+  const [monacoEditor, setMonacoEditor] = useState<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const [isMonacoLoading, setIsMonacoLoading] = useState(true);
 
   const webviewRef = useRef<HTMLWebViewElement>(null);
   const inputTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
 
   // Sample Java code for the Code tab
   const sampleJavaCode = `package com.example.test;
@@ -186,30 +190,139 @@ public class AutomatedTest {
     setJavaCode(sampleJavaCode);
   }, []);
 
-  // Configure Monaco Editor
+  // Initialize Monaco Editor
   useEffect(() => {
-    // Configure Monaco Editor for Electron environment
-    if (typeof window !== 'undefined') {
-      // Set the Monaco environment
-      window.MonacoEnvironment = {
-        getWorkerUrl: function (moduleId, label) {
-          if (label === 'json') {
-            return './monaco-editor/esm/vs/language/json/json.worker.js';
-          }
-          if (label === 'css' || label === 'scss' || label === 'less') {
-            return './monaco-editor/esm/vs/language/css/css.worker.js';
-          }
-          if (label === 'html' || label === 'handlebars' || label === 'razor') {
-            return './monaco-editor/esm/vs/language/html/html.worker.js';
-          }
-          if (label === 'typescript' || label === 'javascript') {
-            return './monaco-editor/esm/vs/language/typescript/ts.worker.js';
-          }
-          return './monaco-editor/esm/vs/editor/editor.worker.js';
+    const initializeMonaco = async () => {
+      if (editorContainerRef.current && rightPanelTab === 'code') {
+        try {
+          setIsMonacoLoading(true);
+          
+          // Configure Monaco environment for Electron
+          self.MonacoEnvironment = {
+            getWorkerUrl: function (moduleId, label) {
+              if (label === 'json') {
+                return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
+                  self.MonacoEnvironment = {
+                    baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/'
+                  };
+                  importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/language/json/json.worker.js');
+                `)}`;
+              }
+              if (label === 'css' || label === 'scss' || label === 'less') {
+                return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
+                  self.MonacoEnvironment = {
+                    baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/'
+                  };
+                  importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/language/css/css.worker.js');
+                `)}`;
+              }
+              if (label === 'html' || label === 'handlebars' || label === 'razor') {
+                return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
+                  self.MonacoEnvironment = {
+                    baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/'
+                  };
+                  importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/language/html/html.worker.js');
+                `)}`;
+              }
+              if (label === 'typescript' || label === 'javascript') {
+                return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
+                  self.MonacoEnvironment = {
+                    baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/'
+                  };
+                  importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/language/typescript/ts.worker.js');
+                `)}`;
+              }
+              return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
+                self.MonacoEnvironment = {
+                  baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/'
+                };
+                importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.worker.js');
+              `)}`;
+            }
+          };
+
+          // Create the editor
+          const editor = monaco.editor.create(editorContainerRef.current, {
+            value: javaCode,
+            language: 'java',
+            theme: theme === 'dark' ? 'vs-dark' : 'vs',
+            automaticLayout: true,
+            minimap: { enabled: true },
+            fontSize: 14,
+            lineNumbers: 'on',
+            scrollBeyondLastLine: false,
+            wordWrap: 'on',
+            folding: true,
+            lineDecorationsWidth: 10,
+            lineNumbersMinChars: 3,
+            glyphMargin: false,
+            tabSize: 4,
+            insertSpaces: true,
+            detectIndentation: true,
+            renderLineHighlight: 'line',
+            selectOnLineNumbers: true,
+            roundedSelection: false,
+            cursorStyle: 'line',
+            mouseWheelZoom: true,
+            quickSuggestions: {
+              other: true,
+              comments: false,
+              strings: false
+            },
+            parameterHints: {
+              enabled: true
+            },
+            autoClosingBrackets: 'always',
+            autoClosingQuotes: 'always',
+            autoSurround: 'languageDefined',
+            formatOnPaste: true,
+            formatOnType: true
+          });
+
+          // Listen for content changes
+          editor.onDidChangeModelContent(() => {
+            setJavaCode(editor.getValue());
+          });
+
+          setMonacoEditor(editor);
+          setIsMonacoLoading(false);
+          
+          console.log('Monaco Editor initialized successfully');
+        } catch (error) {
+          console.error('Error initializing Monaco Editor:', error);
+          setIsMonacoLoading(false);
         }
-      };
+      }
+    };
+
+    if (rightPanelTab === 'code' && !monacoEditor) {
+      // Small delay to ensure the container is rendered
+      setTimeout(initializeMonaco, 100);
     }
-  }, []);
+  }, [rightPanelTab, theme]);
+
+  // Update Monaco theme when theme changes
+  useEffect(() => {
+    if (monacoEditor) {
+      monaco.editor.setTheme(theme === 'dark' ? 'vs-dark' : 'vs');
+    }
+  }, [theme, monacoEditor]);
+
+  // Update Monaco editor value when javaCode changes externally
+  useEffect(() => {
+    if (monacoEditor && monacoEditor.getValue() !== javaCode) {
+      monacoEditor.setValue(javaCode);
+    }
+  }, [javaCode, monacoEditor]);
+
+  // Cleanup Monaco editor
+  useEffect(() => {
+    return () => {
+      if (monacoEditor) {
+        monacoEditor.dispose();
+      }
+    };
+  }, [monacoEditor]);
 
   // First API mutation
   const initProcessMutation = useMutation({
@@ -646,11 +759,6 @@ const handleGenerate = () => {
     setLeftPanelCollapsed(!isLeftPanelCollapsed);
   };
 
-  const handleEditorMount = (editor: monaco.editor.IStandaloneCodeEditor, monaco: typeof import('monaco-editor')) => {
-    // Editor is mounted and ready
-    console.log('Monaco Editor mounted successfully');
-  };
-
   return (
     <div className="flex h-screen bg-background">
       <PanelGroup direction="horizontal" onLayout={handlePanelResize}>
@@ -1015,50 +1123,19 @@ const handleGenerate = () => {
               </TabsContent>
 
               <TabsContent value="code" className="flex-1 m-0">
-                <div className="h-full">
-                  <Editor
-                    height="100%"
-                    defaultLanguage="java"
-                    value={javaCode}
-                    onChange={(value) => setJavaCode(value || '')}
-                    onMount={handleEditorMount}
-                    theme="vs-dark"
-                    loading={<div className="flex items-center justify-center h-full">Loading Monaco Editor...</div>}
-                    options={{
-                      readOnly: false,
-                      minimap: { enabled: true },
-                      fontSize: 14,
-                      lineNumbers: 'on',
-                      scrollBeyondLastLine: false,
-                      automaticLayout: true,
-                      wordWrap: 'on',
-                      folding: true,
-                      lineDecorationsWidth: 10,
-                      lineNumbersMinChars: 3,
-                      glyphMargin: false,
-                      tabSize: 4,
-                      insertSpaces: true,
-                      detectIndentation: true,
-                      renderLineHighlight: 'line',
-                      selectOnLineNumbers: true,
-                      roundedSelection: false,
-                      readOnlyMessage: { value: '' },
-                      cursorStyle: 'line',
-                      mouseWheelZoom: true,
-                      quickSuggestions: {
-                        other: true,
-                        comments: false,
-                        strings: false
-                      },
-                      parameterHints: {
-                        enabled: true
-                      },
-                      autoClosingBrackets: 'always',
-                      autoClosingQuotes: 'always',
-                      autoSurround: 'languageDefined',
-                      formatOnPaste: true,
-                      formatOnType: true
-                    }}
+                <div className="h-full relative">
+                  {isMonacoLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
+                      <div className="flex items-center gap-2">
+                        <LoaderIcon className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Loading Monaco Editor...</span>
+                      </div>
+                    </div>
+                  )}
+                  <div 
+                    ref={editorContainerRef} 
+                    className="w-full h-full"
+                    style={{ minHeight: '100%' }}
                   />
                 </div>
               </TabsContent>
