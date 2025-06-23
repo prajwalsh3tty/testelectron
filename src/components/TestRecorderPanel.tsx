@@ -197,6 +197,30 @@ const handleGenerate = () => {
   // Keep track of the last event for deduplication
   const lastEventRef = useRef<{ selector: string; xpath: string; type: string; value: string | null; timestamp: number } | null>(null);
 
+  // URL validation helper
+  const isValidUrl = (urlString: string): boolean => {
+    try {
+      const url = new URL(urlString);
+      return ['http:', 'https:'].includes(url.protocol);
+    } catch {
+      return false;
+    }
+  };
+
+  // Format URL helper
+  const formatUrl = (urlString: string): string => {
+    if (!urlString.trim()) return '';
+    
+    // If it already has a protocol, validate and return
+    if (urlString.startsWith('http://') || urlString.startsWith('https://')) {
+      return isValidUrl(urlString) ? urlString : '';
+    }
+    
+    // Add https:// by default
+    const formattedUrl = `https://${urlString}`;
+    return isValidUrl(formattedUrl) ? formattedUrl : '';
+  };
+
   const injectRecorderScript = () => {
     const webview = webviewRef.current;
     if (!webview) return;
@@ -527,14 +551,18 @@ const handleGenerate = () => {
 
     // Navigate to the test URL
     if (test.url && webviewRef.current) {
-      const formattedUrl = test.url.startsWith('http') ? test.url : `https://${test.url}`;
-      setIsLoading(true);
-      
-      // Reset injection tracking for new URL
-      isScriptInjectedRef.current = false;
-      lastInjectedUrlRef.current = '';
-      
-      webviewRef.current.src = formattedUrl;
+      const formattedUrl = formatUrl(test.url);
+      if (formattedUrl) {
+        setIsLoading(true);
+        
+        // Reset injection tracking for new URL
+        isScriptInjectedRef.current = false;
+        lastInjectedUrlRef.current = '';
+        
+        webviewRef.current.src = formattedUrl;
+      } else {
+        toast.error('Invalid URL format');
+      }
     }
   };
 
@@ -551,15 +579,19 @@ const handleGenerate = () => {
 
   const navigateWebview = () => {
     if (webviewRef.current) {
-      const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
-      console.log('Navigating to:', formattedUrl);
-      setIsLoading(true);
-      
-      // Reset injection tracking for new URL
-      isScriptInjectedRef.current = false;
-      lastInjectedUrlRef.current = '';
-      
-      webviewRef.current.src = formattedUrl;
+      const formattedUrl = formatUrl(url);
+      if (formattedUrl) {
+        console.log('Navigating to:', formattedUrl);
+        setIsLoading(true);
+        
+        // Reset injection tracking for new URL
+        isScriptInjectedRef.current = false;
+        lastInjectedUrlRef.current = '';
+        
+        webviewRef.current.src = formattedUrl;
+      } else {
+        toast.error('Please enter a valid URL (e.g., example.com or https://example.com)');
+      }
     }
   };
 
@@ -751,14 +783,14 @@ const handleGenerate = () => {
                             <Input
                               value={url}
                               onChange={(e) => setUrl(e.target.value)}
-                              placeholder="Enter URL to test"
+                              placeholder="Enter URL to test (e.g., example.com)"
                               className="flex-1 h-8"
                               onKeyDown={(e) => e.key === 'Enter' && navigateWebview()}
                             />
                             <Button
                               onClick={navigateWebview}
                               variant="secondary"
-                              disabled={isLoading}
+                              disabled={isLoading || !url.trim()}
                               size="sm"
                             >
                               <Globe className="h-4 w-4" />
