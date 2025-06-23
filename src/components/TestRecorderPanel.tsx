@@ -302,21 +302,21 @@ const handleGenerate = () => {
     });
   };
 
-  useEffect(() => {
-    const handleWebviewLoad = () => {
-      setIsLoading(false);
-      // Add navigation event to timeline
-      const navigationEvent: TimelineEvent = {
-        id: `nav-${Date.now()}`,
-        type: 'navigation',
-        title: `Navigated to ${webviewRef.current?.src}`,
-        timestamp: Date.now(),
-        icon: getEventIcon('navigation')
-      };
-      setTimelineEvents(prev => [navigationEvent, ...prev]);
-      setTimeout(injectRecorderScript, 1000);
+  // Handle webview load completion
+  const handleWebviewLoad = () => {
+    // Add navigation event to timeline
+    const navigationEvent: TimelineEvent = {
+      id: `nav-${Date.now()}`,
+      type: 'navigation',
+      title: `Navigated to ${webviewRef.current?.src}`,
+      timestamp: Date.now(),
+      icon: getEventIcon('navigation')
     };
+    setTimelineEvents(prev => [navigationEvent, ...prev]);
+    setTimeout(injectRecorderScript, 1000);
+  };
 
+  useEffect(() => {
     const handleConsoleMessage = (e: { message: string }) => {
       try {
         const data = JSON.parse(e.message);
@@ -343,23 +343,11 @@ const handleGenerate = () => {
     };
 
     if (webviewRef.current) {
-      webviewRef.current.addEventListener('dom-ready', handleWebviewLoad);
       webviewRef.current.addEventListener('console-message', handleConsoleMessage);
-      webviewRef.current.addEventListener('did-fail-load', (e) => {
-        console.error('Webview failed to load:', e);
-        setIsLoading(false);
-      });
-      webviewRef.current.addEventListener('did-start-loading', () => {
-        setIsLoading(true);
-      });
-      webviewRef.current.addEventListener('did-stop-loading', () => {
-        setIsLoading(false);
-      });
     }
 
     return () => {
       if (webviewRef.current) {
-        webviewRef.current.removeEventListener('dom-ready', handleWebviewLoad);
         webviewRef.current.removeEventListener('console-message', handleConsoleMessage);
       }
       if (inputTimeoutRef.current) {
@@ -865,6 +853,9 @@ const handleGenerate = () => {
                   webviewRef={webviewRef}
                   isLeftPanelCollapsed={isLeftPanelCollapsed}
                   toggleLeftPanel={toggleLeftPanel}
+                  isLoading={isLoading}
+                  setIsLoading={setIsLoading}
+                  onWebviewLoad={handleWebviewLoad}
                 />
               </TabsContent>
 
