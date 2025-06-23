@@ -883,53 +883,84 @@ const handleGenerate = () => {
           </PanelResizeHandle>
         )}
 
-        {/* Right Panel - Tabbed View */}
+        {/* Right Panel - Persistent Webview with Tab Overlay */}
         <Panel>
           <div className="h-full relative">
-            <Tabs value={rightPanelTab} onValueChange={setRightPanelTab} className="h-full flex flex-col">
-              <TabsList className="w-full justify-start border-b rounded-none p-0 h-10 bg-background/80 backdrop-blur-sm">
-                <TabsTrigger
-                  value="browser"
-                  className="flex items-center gap-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10"
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                  Browser
-                </TabsTrigger>
-                <TabsTrigger
-                  value="code"
-                  className="flex items-center gap-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10"
-                >
-                  <FileCode className="h-3.5 w-3.5" />
-                  Code
-                </TabsTrigger>
-                <TabsTrigger
-                  value="report"
-                  className="flex items-center gap-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-10"
-                >
-                  <FileText className="h-3.5 w-3.5" />
-                  Test Report
-                </TabsTrigger>
-              </TabsList>
+            {/* Persistent Webview - Always rendered */}
+            <div className={`absolute inset-0 ${rightPanelTab === 'browser' ? 'z-10' : 'z-0'}`}>
+              <BrowserPanel 
+                webviewRef={webviewRef}
+                isLeftPanelCollapsed={isLeftPanelCollapsed}
+                toggleLeftPanel={toggleLeftPanel}
+                isLoading={isLoading}
+                setIsLoading={setIsLoading}
+                onWebviewLoad={handleWebviewLoad}
+              />
+            </div>
 
-              <TabsContent value="browser" className="flex-1 m-0">
-                <BrowserPanel 
-                  webviewRef={webviewRef}
-                  isLeftPanelCollapsed={isLeftPanelCollapsed}
-                  toggleLeftPanel={toggleLeftPanel}
-                  isLoading={isLoading}
-                  setIsLoading={setIsLoading}
-                  onWebviewLoad={handleWebviewLoad}
-                />
-              </TabsContent>
+            {/* Tab System Overlay */}
+            <div className="absolute inset-0 z-20 flex flex-col bg-background">
+              {/* Tab Navigation */}
+              <div className="border-b bg-background/95 backdrop-blur-sm">
+                <div className="flex">
+                  <button
+                    onClick={() => setRightPanelTab('browser')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                      rightPanelTab === 'browser'
+                        ? 'border-primary text-primary bg-primary/5'
+                        : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                    }`}
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                    Browser
+                  </button>
+                  <button
+                    onClick={() => setRightPanelTab('code')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                      rightPanelTab === 'code'
+                        ? 'border-primary text-primary bg-primary/5'
+                        : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                    }`}
+                  >
+                    <FileCode className="h-3.5 w-3.5" />
+                    Code
+                  </button>
+                  <button
+                    onClick={() => setRightPanelTab('report')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                      rightPanelTab === 'report'
+                        ? 'border-primary text-primary bg-primary/5'
+                        : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                    }`}
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    Test Report
+                  </button>
+                </div>
+              </div>
 
-              <TabsContent value="code" className="flex-1 m-0">
-                <CodePanel isActive={rightPanelTab === 'code'} />
-              </TabsContent>
+              {/* Tab Content */}
+              <div className="flex-1 relative">
+                {/* Browser Tab - Transparent overlay when active */}
+                {rightPanelTab === 'browser' && (
+                  <div className="absolute inset-0 pointer-events-none" />
+                )}
 
-              <TabsContent value="report" className="flex-1 m-0">
-                <TestReportPanel isActive={rightPanelTab === 'report'} />
-              </TabsContent>
-            </Tabs>
+                {/* Code Tab */}
+                {rightPanelTab === 'code' && (
+                  <div className="absolute inset-0 bg-background">
+                    <CodePanel isActive={true} />
+                  </div>
+                )}
+
+                {/* Report Tab */}
+                {rightPanelTab === 'report' && (
+                  <div className="absolute inset-0 bg-background">
+                    <TestReportPanel isActive={true} />
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </Panel>
       </PanelGroup>
