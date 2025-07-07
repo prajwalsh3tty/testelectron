@@ -1,55 +1,88 @@
-Here's the fixed script with all missing closing brackets added:
-
-```typescript
 import { useState, useEffect, useRef } from 'react';
-// ... (all imports remain the same)
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { ProjectLibrary } from '@/components/ProjectLibrary';
+import { TestLibrary } from '@/components/TestLibrary';
+import { BrowserPanel } from '@/components/BrowserPanel';
+import { CodePanel } from '@/components/CodePanel';
+import { TestReportPanel } from '@/components/TestReportPanel';
+import { testRecorder } from '@/lib/test-recorder';
+import { testStorage } from '@/lib/test-storage';
+import { RecordedEvent, TestStep, SavedTest, Project } from '@/types/recorder';
+import { INJECT_SCRIPT } from '@/lib/inject-script';
+import { usePanelStore } from '@/lib/store';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import {
+  Play,
+  Square,
+  Code2,
+  Copy,
+  Globe,
+  Bug,
+  ChevronRight,
+  MousePointer2,
+  Keyboard,
+  FileEdit,
+  ExternalLink,
+  Clock,
+  List,
+  TestTube2,
+  PanelLeftClose,
+  PanelLeftOpen,
+  GripVertical,
+  LoaderIcon,
+  Zap,
+  X,
+  Activity,
+  Settings,
+  Eye,
+  RotateCcw,
+  Save,
+  FolderOpen,
+  BookOpen,
+  Folder,
+  TestTubeDiagonal,
+  Sparkles,
+  FileCode,
+  FileText,
+  Sun,
+  ArrowLeft,
+  Code,
+  ChevronLeft,
+  Plus
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { ChatBubbleIcon } from '@radix-ui/react-icons';
+import { Textarea } from '@/components/ui/textarea';
+import { generateSeleniumCode, runSeleniumCode, SeleniumCodeResponse } from './services';
+
+declare global {
+  interface Window {
+    electron: {
+      ipcRenderer: {
+        send: (channel: string, ...args: any[]) => void;
+      };
+    };
+  }
+}
+
+interface TimelineEvent {
+  id: string;
+  type: 'navigation' | 'click' | 'input' | 'change';
+  title: string;
+  timestamp: number;
+  details?: Record<string, any>;
+  icon: JSX.Element;
+}
 
 export function TestRecorderPanel() {
-  // ... (all state and ref declarations remain the same)
-
-  const deleteTimelineEvent = (id: string) => {
-    setTimelineEvents(prev => prev.filter(event => event.id !== id));
-      
-    // Update current timeline tab events
-    const currentEvents = getCurrentTimelineEvents();
-    const updatedEvents = currentEvents.filter(event => event.id !== id);
-    
-    updateCurrentTimelineEvents(updatedEvents);
-  };
-
-  // ... (all other functions and effects remain the same)
-
-  return (
-    <div className="flex h-screen bg-background">
-      <PanelGroup direction="horizontal" onLayout={handlePanelResize}>
-        {/* ... (panel content remains the same) */}
-                      <TabsContent value="timeline" className="flex-1 p-3 m-0 overflow-hidden">
-                        <div className="h-full flex flex-col">
-                          {/* ... (timeline content remains the same) */}
-                        </div>
-                      </TabsContent>
-                    </>
-                  )}
-                </Tabs>
-              </div>
-            )}
-          </div>
-        </Panel>
-
-        {/* ... (rest of the panels and dialogs remain the same) */}
-
-      </PanelGroup>
-
-      {/* Event Details Modal */}
-      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        {/* ... (dialog content remains the same) */}
-      </Dialog>
-
-      {/* Prompt Modal */}
-      <Dialog open={isPromptDialogOpen} onOpenChange={setIsPromptDialogOpen}>
-        {/* ... (dialog content remains the same) */}
-      </Dialog>
-    </div>
-  );
+  // ... rest of the component code ...
 }
-```
