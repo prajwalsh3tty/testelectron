@@ -28,6 +28,7 @@ import {
   Globe,
   Bug,
   ChevronRight,
+  ChevronLeft,
   MousePointer2,
   Keyboard,
   FileEdit,
@@ -101,6 +102,15 @@ export function TestRecorderPanel() {
   const [rightPanelTab, setRightPanelTab] = useState('browser');
   const [promptText, setPromptText] = useState('');
   const [isPromptDialogOpen, setIsPromptDialogOpen] = useState(false);
+  
+  // Multiple timeline events state
+  const [timelineEventTabs, setTimelineEventTabs] = useState<{
+    id: string;
+    name: string;
+    events: TimelineEvent[];
+  }[]>([{ id: 'event-1', name: 'Event 1', events: [] }]);
+  const [activeTimelineTab, setActiveTimelineTab] = useState('event-1');
+  const [tabScrollPosition, setTabScrollPosition] = useState(0);
 
   const webviewRef = useRef<HTMLWebViewElement>(null);
   const inputTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -212,47 +222,45 @@ export function TestRecorderPanel() {
 
   const sequentialMutation = useMutation({
     mutationFn: async () => {
-      // const recordedEventsList = timelineEvents.map((recEvent => `${recEvent.type} in ${recEvent.details?.placeholder} in ${recEvent?.details?.xpath}`))
-      // const recordedEventsList = timelineEvents.map((recEvent => `${recEvent.type} in ${(recEvent.details?.placeholder ?? recEvent.details?.text) ? (recEvent.details.placeholder ?? recEvent.details.text) + " in" : ""} ${(recEvent.details?.id ?? recEvent.details?.name) ? (recEvent.details.id ?? recEvent.details.name) + " in" : ""} ${recEvent?.details?.xpath}`))
-      const recordedEventsList = timelineEvents.map(recordedEvent => {
-        // Extract event details for clarity
-        const eventType = recordedEvent.type;
-        const eventDetails = recordedEvent.details || {};
+      // Collect all timeline events from all tabs
+      const allTimelineActivities = timelineEventTabs.map(tab => {
+        const recordedEventsList = tab.events.map(recordedEvent => {
+          const eventType = recordedEvent.type;
+          const eventDetails = recordedEvent.details || {};
 
-        // Get text content (placeholder or actual text)
-        const textContent = eventDetails.placeholder || eventDetails.text || '';
+          const textContent = eventDetails.placeholder || eventDetails.text || '';
+          const elementId = eventDetails.id || eventDetails.name || '';
+          const elementPath = eventDetails.xpath || '';
 
-        // Get element identifier (id or name)
-        const elementId = eventDetails.id || eventDetails.name || '';
+          const parts = [eventType];
 
-        // Get element location (xpath)
-        const elementPath = eventDetails.xpath || '';
+          if (textContent) {
+            parts.push(`with text "${textContent}"`);
+          }
 
-        // Build descriptive parts
-        const parts = [eventType];
+          if (elementId) {
+            parts.push(`on element "${elementId}"`);
+          }
 
-        if (textContent) {
-          parts.push(`with text "${textContent}"`);
-        }
+          if (elementPath) {
+            parts.push(`at path: ${elementPath}`);
+          }
 
-        if (elementId) {
-          parts.push(`on element "${elementId}"`);
-        }
+          return parts.join(' ');
+        });
 
-        if (elementPath) {
-          parts.push(`at path: ${elementPath}`);
-        }
+        return {
+          pageUrl: url,
+          action: recordedEventsList,
+          eventName: tab.name
+        };
+      }).filter(activity => activity.action.length > 0); // Only include tabs with events
 
-        // Join parts with appropriate separators
-        return parts.join(' ');
-      });
-      console.log("events", timelineEvents);
+      console.log("all timeline activities", allTimelineActivities);
+      
       const initData = {
         requirements: currentTest?.description,
-        activities: [{
-          pageUrl: url,
-          action: recordedEventsList
-        }]
+        activities: allTimelineActivities
       };
       setisGenerateLoading(true);
       setIsPromptDialogOpen(false);
@@ -325,6 +333,59 @@ export function TestRecorderPanel() {
     name: string;
     type: string; value: string | null; timestamp: number
   } | null>(null);
+
+  // Get current active timeline events
+  const getCurrentTimelineEvents = () => {
+    const activeTab = timelineEventTabs.find(tab => tab.id === activeTimelineTab);
+    return activeTab ? activeTab.events : [];
+  };
+
+  // Update timeline events for active tab
+  const updateCurrentTimelineEvents = (events: TimelineEvent[]) => {
+    setTimelineEventTabs(prev => prev.map(tab => 
+      tab.id === activeTimelineTab 
+        ? { ...tab, events }
+        : tab
+    ));
+  };
+
+  // Add new timeline tab
+  const addNewTimelineTab = () => {
+    const newTabNumber = timelineEventTabs.length + 1;
+    const newTab = {
+      id: `event-${newTabNumber}`,
+      name: `Event ${newTabNumber}`,
+      events: []
+    };
+    setTimelineEventTabs(prev => [...prev, newTab]);
+    setActiveTimelineTab(newTab.id);
+  };
+
+  // Delete timeline tab
+  const deleteTimelineTab = (tabId: string) => {
+    if (timelineEventTabs.length <= 1) return; // Don't delete if it's the last tab
+    
+    setTimelineEventTabs(prev => {
+      const filtered = prev.filter(tab => tab.id !== tabId);
+      // If we're deleting the active tab, switch to the first available tab
+      if (tabId === activeTimelineTab && filtered.length > 0) {
+        setActiveTimelineTab(filtered[0].id);
+      }
+      return filtered;
+    });
+  };
+
+  // Scroll tabs
+  const scrollTabs = (direction: 'left' | 'right') => {
+    const scrollAmount = 200;
+    setTabScrollPosition(prev => {
+      if (direction === 'left') {
+        return Math.max(0, prev - scrollAmount);
+      } else {
+        return prev + scrollAmount;
+      }
+    });
+  };
 
   // URL validation helper
   const isValidUrl = (urlString: string): boolean => {
@@ -747,7 +808,377 @@ export function TestRecorderPanel() {
 
   const deleteTimelineEvent = (id: string) => {
     setTimelineEvents(prev => prev.filter(event => event.id !== id));
+      
+      // Update current timeline tab events
+      const currentEvents = getCurrentTimelineEvents();
+      const updatedEvents = [newEvent, ...currentEvents].filter((event, index, self) =>
+        index === self.findIndex((e) => e.id === event.id)
+      ).sort((a, b) => b.timestamp - a.timestamp);
+      
+      updateCurrentTimelineEvents(updatedEvents);
+    }
   };
+
+  // Handle webview load completion 
+  const handleWebviewLoad = () => {
+    const webview = webviewRef.current;
+    if (!webview) return;
+
+    const currentUrl = webview.src;
+
+    // Only add navigation event for real URLs, not blank pages
+    if (currentUrl && currentUrl !== 'about:blank') {
+      // Add navigation event to timeline
+      const navigationEvent: TimelineEvent = {
+        id: `nav-${Date.now()}`,
+        type: 'navigation',
+        title: `Navigated to ${currentUrl}`,
+        timestamp: Date.now(),
+        icon: getEventIcon('navigation')
+      };
+      
+      const currentEvents = getCurrentTimelineEvents();
+      updateCurrentTimelineEvents([navigationEvent, ...currentEvents]);
+
+      // Inject script only if recording and not already injected for this URL
+      if (isRecording && currentUrl !== lastInjectedUrlRef.current) {
+        setTimeout(() => {
+          injectRecorderScript();
+        }, 1000); // Increased delay to ensure page is fully loaded
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleConsoleMessage = (e: { message: string }) => {
+      try {
+        const data = JSON.parse(e.message);
+        if (data.type === 'RECORDED_EVENT' && isRecording) {
+          const recordedEvent = data.event as RecordedEvent;
+
+          // Handle input events with debouncing
+          if (recordedEvent.type === 'input') {
+            if (inputTimeoutRef.current) {
+              clearTimeout(inputTimeoutRef.current);
+            }
+            inputTimeoutRef.current = setTimeout(() => {
+              processEvent(recordedEvent);
+            }, 1000);
+            return;
+          }
+
+          // Process other events immediately
+          processEvent(recordedEvent);
+        }
+      } catch (error) {
+        // Ignore non-JSON console messages
+      }
+    };
+
+    if (webviewRef.current) {
+      webviewRef.current.addEventListener('console-message', handleConsoleMessage);
+    }
+
+    return () => {
+      if (webviewRef.current) {
+        webviewRef.current.removeEventListener('console-message', handleConsoleMessage);
+      }
+      if (inputTimeoutRef.current) {
+        clearTimeout(inputTimeoutRef.current);
+      }
+      setResult('');
+    };
+  }, [isRecording]);
+
+  const getEventTitle = (event: RecordedEvent): string => {
+    switch (event.type) {
+      case 'click':
+        return `Clicked ${event.text ? `"${event.text}"` : event.tagName}`;
+      case 'input':
+        return `Typed in ${event.tagName}`;
+      case 'change':
+        return `Changed ${event.tagName}`;
+      default:
+        return `${event.tagName} interaction`;
+    }
+  };
+
+  const handleStartRecording = () => {
+    console.log('Starting recording');
+    testRecorder.clearEvents();
+    // Clear all timeline events
+    setTimelineEventTabs(prev => prev.map(tab => ({ ...tab, events: [] })));
+    lastEventRef.current = null;
+    setIsRecording(true);
+
+    // Reset injection tracking
+    isScriptInjectedRef.current = false;
+    lastInjectedUrlRef.current = '';
+
+    // Inject script if webview has content
+    const webview = webviewRef.current;
+    if (webview && webview.src && webview.src !== 'about:blank') {
+      setTimeout(() => {
+        injectRecorderScript();
+      }, 500);
+    }
+
+    toast.success('Recording started');
+  };
+
+  const handleStopRecording = () => {
+    console.log('Stopping recording');
+    setIsRecording(false);
+    if (inputTimeoutRef.current) {
+      clearTimeout(inputTimeoutRef.current);
+    }
+    toast.success('Recording stopped');
+  };
+
+  const handleClearRecording = () => {
+    console.log('Clearing recording');
+    testRecorder.clearEvents();
+    setSteps([]);
+    // Clear all timeline events
+    setTimelineEventTabs(prev => prev.map(tab => ({ ...tab, events: [] })));
+    lastEventRef.current = null;
+    if (inputTimeoutRef.current) {
+      clearTimeout(inputTimeoutRef.current);
+    }
+    toast.success('Recording cleared');
+  };
+
+  const handleSaveTest = () => {
+    if (steps.length === 0) {
+      toast.error('No steps to save');
+      return;
+    }
+
+    if (!currentProject) {
+      toast.error('Please select a project first');
+      return;
+    }
+
+    const testName = prompt('Enter test name:');
+    if (!testName?.trim()) return;
+
+    const savedTest: SavedTest = {
+      id: `test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: testName.trim(),
+      description: '',
+      url: url,
+      steps: steps,
+      events: testRecorder.getEvents(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      tags: [],
+      testType: currentTest?.testType || "Exploratory",
+      projectId: currentProject.id
+    };
+
+    testStorage.saveTest(savedTest);
+    setCurrentTest(savedTest);
+    toast.success(`Test "${testName}" saved successfully`);
+  };
+
+  const handleSelectProject = (project: Project) => {
+    setCurrentProject(project);
+    setActiveTab('library');
+  };
+
+  const handleBackToProjects = () => {
+    setCurrentProject(null);
+    setActiveTab('projects');
+    setShowTestTabs(false);
+    setCurrentTest(null);
+  };
+
+  const handleLoadTest = (test: SavedTest) => {
+    console.log(test);
+    setCurrentTest(test);
+    setUrl(test.url);
+    setSteps(test.steps);
+
+    // Recreate timeline events from test events and put them in the first tab
+    const events: TimelineEvent[] = test.events.map((event, index) => ({
+      id: `loaded-event-${index}`,
+      type: event.type as TimelineEvent['type'],
+      title: getEventTitle(event),
+      timestamp: event.timestamp,
+      details: event,
+      icon: getEventIcon(event.type)
+    }));
+
+    // Reset to single tab with loaded events
+    setTimelineEventTabs([{
+      id: 'event-1',
+      name: 'Event 1',
+      events: events.sort((a, b) => b.timestamp - a.timestamp)
+    }]);
+    setActiveTimelineTab('event-1');
+
+    // Load events into test recorder
+    testRecorder.clearEvents();
+    test.events.forEach(event => testRecorder.addEvent(event));
+
+    // Show test tabs and switch to timeline
+    setShowTestTabs(true);
+    setActiveTab('timeline');
+
+    toast.success(`Test "${test.name}" loaded`);
+
+    // Navigate to the test URL
+    if (test.url && webviewRef.current) {
+      const formattedUrl = formatUrl(test.url);
+      if (formattedUrl) {
+        setIsLoading(true);
+
+        // Reset injection tracking for new URL
+        isScriptInjectedRef.current = false;
+        lastInjectedUrlRef.current = '';
+
+        webviewRef.current.src = formattedUrl;
+      } else {
+        toast.error('Invalid URL format');
+      }
+    }
+  };
+
+  const handleBackToLibrary = () => {
+    setShowTestTabs(false);
+    setActiveTab('library');
+    setCurrentTest(null);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard');
+  };
+
+  const navigateWebview = () => {
+    if (webviewRef.current) {
+      const formattedUrl = formatUrl(url);
+      if (formattedUrl) {
+        console.log('Navigating to:', formattedUrl);
+        setIsLoading(true);
+
+        // Reset injection tracking for new URL
+        isScriptInjectedRef.current = false;
+        lastInjectedUrlRef.current = '';
+
+        webviewRef.current.src = formattedUrl;
+      } else {
+        toast.error('Please enter a valid URL (e.g., example.com or https://example.com)');
+      }
+    }
+  };
+
+  const toggleDevTools = () => {
+    window.electron?.ipcRenderer.send('toggle-dev-tools');
+  };
+
+  const handlePanelResize = (sizes: number[]) => {
+    if (!isLeftPanelCollapsed) {
+      setLeftPanelSize(sizes[0]);
+    }
+  };
+
+  const toggleLeftPanel = () => {
+    setLeftPanelCollapsed(!isLeftPanelCollapsed);
+  };
+
+  const deleteTimelineEvent = (id: string) => {
+    const currentEvents = getCurrentTimelineEvents();
+    const updatedEvents = currentEvents.filter(event => event.id !== id);
+    updateCurrentTimelineEvents(updatedEvents);
+  };
+
+  // Modified handleGenerate to include all timeline events
+  const handleGenerate = () => {
+    console.log(result);
+    if (result.length > 0 && !isPromptDialogOpen) {
+      setIsPromptDialogOpen(true);
+    } else if (isPromptDialogOpen && result.length > 0) {
+      sequentialMutation.mutate();
+    }
+    else {
+      sequentialMutation.mutate();
+    }
+  };
+
+  // Update the sequential mutation to include all timeline events
+  const sequentialMutation = useMutation({
+    mutationFn: async () => {
+      // Collect all timeline events from all tabs
+      const allTimelineActivities = timelineEventTabs.map(tab => {
+        const recordedEventsList = tab.events.map(recordedEvent => {
+          const eventType = recordedEvent.type;
+          const eventDetails = recordedEvent.details || {};
+
+          const textContent = eventDetails.placeholder || eventDetails.text || '';
+          const elementId = eventDetails.id || eventDetails.name || '';
+          const elementPath = eventDetails.xpath || '';
+
+          const parts = [eventType];
+
+          if (textContent) {
+            parts.push(`with text "${textContent}"`);
+          }
+
+          if (elementId) {
+            parts.push(`on element "${elementId}"`);
+          }
+
+          if (elementPath) {
+            parts.push(`at path: ${elementPath}`);
+          }
+
+          return parts.join(' ');
+        });
+
+        return {
+          pageUrl: url,
+          action: recordedEventsList,
+          eventName: tab.name
+        };
+      }).filter(activity => activity.action.length > 0); // Only include tabs with events
+
+      console.log("all timeline activities", allTimelineActivities);
+      
+      const initData = {
+        requirements: currentTest?.description,
+        activities: allTimelineActivities
+      };
+      setisGenerateLoading(true);
+      setIsPromptDialogOpen(false);
+
+      const initResult = await initProcessMutation.mutateAsync(initData);
+
+      setfileId(initResult.result);
+      const generateData = {
+        fileId: initResult.result || "default-file-id",
+        testingType: currentTest?.testType === 'Exploratory' ? 0 : 1,
+        userPrompt: promptText
+      };
+
+      const generateResult = await generateFeatureMutation.mutateAsync(generateData);
+
+      setResult(generateResult.result);
+      return { initResult, generateResult };
+    },
+    onSuccess: () => {
+      toast.success('Scenarios Generated')
+      setisGenerateLoading(false);
+
+      setActiveTab('scenarios');
+    },
+    onError: (error) => {
+      setisGenerateLoading(false);
+
+      console.error('Sequential API calls failed:', error);
+    },
+  });
+
   return (
     <div className="flex h-screen bg-background">
       <PanelGroup direction="horizontal" onLayout={handlePanelResize}>
@@ -966,7 +1397,7 @@ export function TestRecorderPanel() {
                           <div className="flex gap-4 text-xs text-muted-foreground">
                             <div className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
-                              {timelineEvents.length} events
+                              {timelineEventTabs.reduce((total, tab) => total + tab.events.length, 0)} events
                             </div>
                             <div className="flex items-center gap-1">
                               <List className="h-3 w-3" />
@@ -995,55 +1426,122 @@ export function TestRecorderPanel() {
                   {showTestTabs && (
                     <>
                       <TabsContent value="timeline" className="flex-1 p-3 m-0 overflow-hidden">
-                        <ScrollArea className="h-full">
-                          <div className="space-y-3">
-                            {timelineEvents.length === 0 ? (
-                              <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
-                                <Clock className="h-8 w-8 mb-2 opacity-50" />
-                                <p className="text-sm">No events recorded yet</p>
-                                <p className="text-xs">Start recording to see timeline</p>
-                              </div>
-                            ) : (
-                              timelineEvents.map((event, index) => (
-                                <div
-                                  key={event.id}
-                                  className="relative group"
-                                >
-                                  <div className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50  theme-card"
-
-                                  >
-                                    <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors cursor-pointer ${getEventColor(event.type)}`} onClick={() => {
-                                      if (event.details) {
-                                        setSelectedEvent(event);
-                                        setIsDetailsOpen(true);
-                                      }
-                                    }}>
-                                      {event.icon}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex justify-between items-start mb-1">
-                                        <p className="font-medium text-sm truncate">{event.title}</p>
-                                        <span className="text-xs text-muted-foreground ml-2 shrink-0">
-                                          {new Date(event.timestamp).toLocaleTimeString()}
-                                        </span>
-                                      </div>
-                                      <Badge variant="outline" className="text-xs theme-badge-outline">
-                                        {event.type}
-                                      </Badge>
-                                    </div>
-                                    {event.details && (
-                                      <X className="h-4 w-4 text-muted-foreground cursor-pointer" onClick={() => deleteTimelineEvent(event.id)} />
+                        <div className="h-full flex flex-col">
+                          {/* Timeline Tabs */}
+                          <div className="flex items-center gap-2 mb-3 border-b pb-2">
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => scrollTabs('left')}
+                                className="h-6 w-6 p-0"
+                                disabled={tabScrollPosition <= 0}
+                              >
+                                <ChevronLeft className="h-3 w-3" />
+                              </Button>
+                              <div 
+                                className="flex gap-1 overflow-hidden"
+                                style={{ 
+                                  transform: `translateX(-${tabScrollPosition}px)`,
+                                  transition: 'transform 0.2s ease'
+                                }}
+                              >
+                                {timelineEventTabs.map((tab) => (
+                                  <div key={tab.id} className="flex items-center gap-1 shrink-0">
+                                    <Button
+                                      variant={activeTimelineTab === tab.id ? "default" : "outline"}
+                                      size="sm"
+                                      onClick={() => setActiveTimelineTab(tab.id)}
+                                      className="h-6 px-2 text-xs relative"
+                                    >
+                                      {tab.name}
+                                      {tab.events.length > 0 && (
+                                        <Badge variant="secondary" className="ml-1 h-4 w-4 p-0 text-xs">
+                                          {tab.events.length}
+                                        </Badge>
+                                      )}
+                                    </Button>
+                                    {timelineEventTabs.length > 1 && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => deleteTimelineTab(tab.id)}
+                                        className="h-4 w-4 p-0 text-muted-foreground hover:text-destructive"
+                                      >
+                                        <X className="h-2 w-2" />
+                                      </Button>
                                     )}
-                                    {/* {event.details && (
-                                      <Eye className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    )} */}
                                   </div>
-                                  {index !== timelineEvents.length - 1 && (
-                                    <div className="absolute left-7 top-14 bottom-0 w-[1px] bg-border" />
-                                  )}
+                                ))}
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => scrollTabs('right')}
+                                className="h-6 w-6 p-0"
+                              >
+                                <ChevronRight className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={addNewTimelineTab}
+                              className="h-6 px-2 text-xs"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Add
+                            </Button>
+                          </div>
+
+                          {/* Timeline Events for Active Tab */}
+                          <ScrollArea className="flex-1">
+                            <div className="space-y-3">
+                              {getCurrentTimelineEvents().length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+                                  <Clock className="h-8 w-8 mb-2 opacity-50" />
+                                  <p className="text-sm">No events recorded yet</p>
+                                  <p className="text-xs">Start recording to see timeline</p>
                                 </div>
-                              ))
-                            )}
+                              ) : (
+                                getCurrentTimelineEvents().map((event, index) => (
+                                  <div
+                                    key={event.id}
+                                    className="relative group"
+                                  >
+                                    <div className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 theme-card">
+                                      <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors cursor-pointer ${getEventColor(event.type)}`} onClick={() => {
+                                        if (event.details) {
+                                          setSelectedEvent(event);
+                                          setIsDetailsOpen(true);
+                                        }
+                                      }}>
+                                        {event.icon}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-start mb-1">
+                                          <p className="font-medium text-sm truncate">{event.title}</p>
+                                          <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                                            {new Date(event.timestamp).toLocaleTimeString()}
+                                          </span>
+                                        </div>
+                                        <Badge variant="outline" className="text-xs theme-badge-outline">
+                                          {event.type}
+                                        </Badge>
+                                      </div>
+                                      {event.details && (
+                                        <X className="h-4 w-4 text-muted-foreground cursor-pointer" onClick={() => deleteTimelineEvent(event.id)} />
+                                      )}
+                                    </div>
+                                    {index !== getCurrentTimelineEvents().length - 1 && (
+                                      <div className="absolute left-7 top-14 bottom-0 w-[1px] bg-border" />
+                                    )}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </ScrollArea>
+                        </div>
                           </div>
                         </ScrollArea>
                       </TabsContent>
