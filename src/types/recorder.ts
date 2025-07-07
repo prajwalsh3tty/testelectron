@@ -15,6 +15,8 @@ export interface RecordedEvent {
   type: EventType;
   selector: string;
   xpath: string;
+  id: string;
+  name: string;
   tagName: string;
   timestamp: number;
   value: string | null;
@@ -39,7 +41,7 @@ export interface SavedTest {
   createdAt: number;
   updatedAt: number;
   tags: string[];
-  testType: "Monkey" | "Functional";
+  testType: "Exploratory" | "Functional";
   projectId: string;
 }
 

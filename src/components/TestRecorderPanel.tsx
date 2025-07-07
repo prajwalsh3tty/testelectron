@@ -19,7 +19,7 @@ import { RecordedEvent, TestStep, SavedTest, Project } from '@/types/recorder';
 import { INJECT_SCRIPT } from '@/lib/inject-script';
 import { usePanelStore } from '@/lib/store';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   Play,
   Square,
@@ -40,6 +40,7 @@ import {
   GripVertical,
   LoaderIcon,
   Zap,
+  X,
   Activity,
   Settings,
   Eye,
@@ -53,9 +54,13 @@ import {
   FileCode,
   FileText,
   Sun,
-  ArrowLeft
+  ArrowLeft,
+  Code
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ChatBubbleIcon } from '@radix-ui/react-icons';
+import { Textarea } from '@/components/ui/textarea';
+import { generateSeleniumCode, runSeleniumCode, SeleniumCodeResponse } from './services';
 
 declare global {
   interface Window {
@@ -89,13 +94,70 @@ export function TestRecorderPanel() {
   const [activeTab, setActiveTab] = useState('projects');
   const [showTestTabs, setShowTestTabs] = useState(false);
   const [result, setResult] = useState("");
+  const [fileId, setfileId] = useState("");
+
+  const [testHTMLReport, setTestHTMLReport] = useState("");
   const [isGenerateLoading, setisGenerateLoading] = useState(false);
   const [rightPanelTab, setRightPanelTab] = useState('browser');
+  const [promptText, setPromptText] = useState('');
+  const [isPromptDialogOpen, setIsPromptDialogOpen] = useState(false);
 
   const webviewRef = useRef<HTMLWebViewElement>(null);
   const inputTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isScriptInjectedRef = useRef(false);
   const lastInjectedUrlRef = useRef<string>('');
+
+  const {
+    data: selenumCodeData,
+    error: selenumCodeError,
+    isLoading: isSelenumCodeLoading,
+    isError: isSelenumCodeError,
+    isSuccess: isSelenumCodeSuccess,
+    refetch,
+    isFetching: isSelenumCodeFetching
+  } = useQuery<SeleniumCodeResponse, Error>({
+    queryKey: ['seleniumCode', fileId],
+    queryFn: () => generateSeleniumCode(fileId),
+    enabled: false,
+
+
+    // retry: 2,
+    // retryDelay: 1000,
+  });
+
+  const {
+    data: runSeleniumCodeData,
+    error: runSeleniumCodeError,
+    isLoading: isrunSeleniumCodeLoading,
+    isError: isrunSeleniumCodeError,
+    isSuccess: isrunSeleniumCodeSuccess,
+    refetch: runSeleniumCodeRefetch,
+    isFetching: isrunSeleniumCodeFetching
+  } = useQuery<SeleniumCodeResponse, Error>({
+    queryKey: ['runSeleniumCode', fileId],
+    queryFn: () => runSeleniumCode(fileId),
+    enabled: false,
+
+
+    // retry: 2,
+    // retryDelay: 1000,
+  });
+
+  useEffect(() => {
+    if (isSelenumCodeSuccess && selenumCodeData?.result?.length) {
+      setRightPanelTab('code')
+    }
+  }, [isSelenumCodeSuccess, selenumCodeData]);
+
+
+  // useEffect(() => {
+  //   if (isrunSeleniumCodeSuccess && fileId.length) {
+  //     // setTimeout(() => {
+  //     // setTestHTMLReport("http://172.18.104.22:5001/api/TestNova/fetchhtmlreport?uniqueId=" + fileId);
+  //     setRightPanelTab('report');
+  //     // }, 2000);
+  //   }
+  // }, [isrunSeleniumCodeSuccess, runSeleniumCodeData, fileId]);
 
   // First API mutation
   const initProcessMutation = useMutation({
@@ -107,11 +169,11 @@ export function TestRecorderPanel() {
         },
         body: JSON.stringify(data),
       });
-      
+
       if (!response.ok) {
         throw new Error(`Init process failed: ${response.statusText}`);
       }
-      
+
       return response.json();
     },
     onSuccess: (data) => {
@@ -132,11 +194,11 @@ export function TestRecorderPanel() {
         },
         body: JSON.stringify(data),
       });
-      
+
       if (!response.ok) {
         throw new Error(`Generate feature failed: ${response.statusText}`);
       }
-      
+
       return response.json();
     },
     onSuccess: (data) => {
@@ -145,12 +207,46 @@ export function TestRecorderPanel() {
     onError: (error) => {
       console.error('Generate feature failed:', error);
     },
-    
+
   });
 
-const sequentialMutation = useMutation({
+  const sequentialMutation = useMutation({
     mutationFn: async () => {
-    const recordedEventsList=timelineEvents.map((recEvent=>`${recEvent.type} in ${recEvent.details?.placeholder} in ${recEvent?.details?.xpath}`))
+      // const recordedEventsList = timelineEvents.map((recEvent => `${recEvent.type} in ${recEvent.details?.placeholder} in ${recEvent?.details?.xpath}`))
+      // const recordedEventsList = timelineEvents.map((recEvent => `${recEvent.type} in ${(recEvent.details?.placeholder ?? recEvent.details?.text) ? (recEvent.details.placeholder ?? recEvent.details.text) + " in" : ""} ${(recEvent.details?.id ?? recEvent.details?.name) ? (recEvent.details.id ?? recEvent.details.name) + " in" : ""} ${recEvent?.details?.xpath}`))
+      const recordedEventsList = timelineEvents.map(recordedEvent => {
+        // Extract event details for clarity
+        const eventType = recordedEvent.type;
+        const eventDetails = recordedEvent.details || {};
+
+        // Get text content (placeholder or actual text)
+        const textContent = eventDetails.placeholder || eventDetails.text || '';
+
+        // Get element identifier (id or name)
+        const elementId = eventDetails.id || eventDetails.name || '';
+
+        // Get element location (xpath)
+        const elementPath = eventDetails.xpath || '';
+
+        // Build descriptive parts
+        const parts = [eventType];
+
+        if (textContent) {
+          parts.push(`with text "${textContent}"`);
+        }
+
+        if (elementId) {
+          parts.push(`on element "${elementId}"`);
+        }
+
+        if (elementPath) {
+          parts.push(`at path: ${elementPath}`);
+        }
+
+        // Join parts with appropriate separators
+        return parts.join(' ');
+      });
+      console.log("events", timelineEvents);
       const initData = {
         requirements: currentTest?.description,
         activities: [{
@@ -158,36 +254,61 @@ const sequentialMutation = useMutation({
           action: recordedEventsList
         }]
       };
-setisGenerateLoading(true);
+      setisGenerateLoading(true);
+      setIsPromptDialogOpen(false);
+
       const initResult = await initProcessMutation.mutateAsync(initData);
-      
-    
+
+      setfileId(initResult.result);
       const generateData = {
         fileId: initResult.result || "default-file-id",
-        testingType:1 ,
-        userPrompt: ''
+        testingType: currentTest?.testType === 'Exploratory' ? 0 : 1,
+        userPrompt: promptText
       };
 
       const generateResult = await generateFeatureMutation.mutateAsync(generateData);
-      
+
       setResult(generateResult.result);
       return { initResult, generateResult };
     },
     onSuccess: () => {
-      toast.success('Scenarios Generated') 
-setisGenerateLoading(false);
+      toast.success('Scenarios Generated')
+      setisGenerateLoading(false);
 
-       setActiveTab('scenarios');
+      setActiveTab('scenarios');
     },
     onError: (error) => {
-    setisGenerateLoading(false);
+      setisGenerateLoading(false);
 
       console.error('Sequential API calls failed:', error);
     },
   });
-const handleGenerate = () => {
-    sequentialMutation.mutate();
+
+  const handleGenerate = () => {
+    console.log(result);
+    if (result.length > 0 && !isPromptDialogOpen) {
+      setIsPromptDialogOpen(true);
+    } else if (isPromptDialogOpen && result.length > 0) {
+      sequentialMutation.mutate();
+    }
+    else {
+      sequentialMutation.mutate();
+    }
   };
+
+  const handleGenerateStepDefCode = () => {
+    refetch();
+
+  };
+
+  const handleRunInitiateTestRun = () => {
+    if (fileId.length) {
+      runSeleniumCodeRefetch()
+      setTestHTMLReport("http://172.18.104.22:5001/api/TestNova/fetchhtmlreport?uniqueId=" + fileId);
+      setRightPanelTab('report');
+    }
+
+  }
 
   const {
     isLeftPanelCollapsed,
@@ -197,7 +318,13 @@ const handleGenerate = () => {
   } = usePanelStore();
 
   // Keep track of the last event for deduplication
-  const lastEventRef = useRef<{ selector: string; xpath: string; type: string; value: string | null; timestamp: number } | null>(null);
+  const lastEventRef = useRef<{
+    selector: string;
+    xpath: string;
+    id: string;
+    name: string;
+    type: string; value: string | null; timestamp: number
+  } | null>(null);
 
   // URL validation helper
   const isValidUrl = (urlString: string): boolean => {
@@ -212,12 +339,12 @@ const handleGenerate = () => {
   // Format URL helper
   const formatUrl = (urlString: string): string => {
     if (!urlString.trim()) return '';
-    
+
     // If it already has a protocol, validate and return
     if (urlString.startsWith('http://') || urlString.startsWith('https://')) {
       return isValidUrl(urlString) ? urlString : '';
     }
-    
+
     // Add https:// by default
     const formattedUrl = `https://${urlString}`;
     return isValidUrl(formattedUrl) ? formattedUrl : '';
@@ -228,7 +355,7 @@ const handleGenerate = () => {
     if (!webview) return;
 
     const currentUrl = webview.src;
-    
+
     // Prevent re-injection for the same URL
     if (currentUrl === lastInjectedUrlRef.current && isScriptInjectedRef.current) {
       console.log('Script already injected for this URL, skipping injection');
@@ -242,7 +369,7 @@ const handleGenerate = () => {
     }
 
     console.log('Injecting script into webview for URL:', currentUrl);
-    
+
     try {
       webview.executeJavaScript(`
         try {
@@ -253,11 +380,11 @@ const handleGenerate = () => {
           console.error('Script injection failed:', error);
         }
       `);
-      
+
       // Mark as injected for this URL
       isScriptInjectedRef.current = true;
       lastInjectedUrlRef.current = currentUrl;
-      
+
       console.log('Script injection initiated successfully');
     } catch (error) {
       console.error('Failed to execute script injection:', error);
@@ -308,7 +435,10 @@ const handleGenerate = () => {
     // For other events, check if it's a duplicate within a short time window
     return (
       lastEvent.selector === event.selector &&
-      lastEvent.xpath===event.xpath&&
+      lastEvent.xpath === event.xpath &&
+      lastEvent.id === event.id &&
+      lastEvent.name === event.name &&
+
       lastEvent.type === event.type &&
       lastEvent.value === event.value &&
       timeDiff < 500
@@ -320,11 +450,13 @@ const handleGenerate = () => {
     if (isDuplicateEvent(recordedEvent)) {
       return;
     }
-
+    console.log("recorded", recordedEvent)
     // Update last event reference
     lastEventRef.current = {
       selector: recordedEvent.selector,
-      xpath:recordedEvent.xpath,
+      xpath: recordedEvent.xpath,
+      id: recordedEvent.id,
+      name: recordedEvent.name,
       type: recordedEvent.type,
       value: recordedEvent.value,
       timestamp: recordedEvent.timestamp
@@ -355,13 +487,13 @@ const handleGenerate = () => {
     });
   };
 
-  // Handle webview load completion - IMPROVED
+  // Handle webview load completion 
   const handleWebviewLoad = () => {
     const webview = webviewRef.current;
     if (!webview) return;
 
     const currentUrl = webview.src;
-    
+
     // Only add navigation event for real URLs, not blank pages
     if (currentUrl && currentUrl !== 'about:blank') {
       // Add navigation event to timeline
@@ -373,7 +505,7 @@ const handleGenerate = () => {
         icon: getEventIcon('navigation')
       };
       setTimelineEvents(prev => [navigationEvent, ...prev]);
-      
+
       // Inject script only if recording and not already injected for this URL
       if (isRecording && currentUrl !== lastInjectedUrlRef.current) {
         setTimeout(() => {
@@ -420,6 +552,7 @@ const handleGenerate = () => {
       if (inputTimeoutRef.current) {
         clearTimeout(inputTimeoutRef.current);
       }
+      setResult('');
     };
   }, [isRecording]);
 
@@ -442,11 +575,11 @@ const handleGenerate = () => {
     setTimelineEvents([]);
     lastEventRef.current = null;
     setIsRecording(true);
-    
+
     // Reset injection tracking
     isScriptInjectedRef.current = false;
     lastInjectedUrlRef.current = '';
-    
+
     // Inject script if webview has content
     const webview = webviewRef.current;
     if (webview && webview.src && webview.src !== 'about:blank') {
@@ -454,7 +587,7 @@ const handleGenerate = () => {
         injectRecorderScript();
       }, 500);
     }
-    
+
     toast.success('Recording started');
   };
 
@@ -503,7 +636,7 @@ const handleGenerate = () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       tags: [],
-      testType: 'Functional',
+      testType: currentTest?.testType || "Exploratory",
       projectId: currentProject.id
     };
 
@@ -525,6 +658,7 @@ const handleGenerate = () => {
   };
 
   const handleLoadTest = (test: SavedTest) => {
+    console.log(test);
     setCurrentTest(test);
     setUrl(test.url);
     setSteps(test.steps);
@@ -556,11 +690,11 @@ const handleGenerate = () => {
       const formattedUrl = formatUrl(test.url);
       if (formattedUrl) {
         setIsLoading(true);
-        
+
         // Reset injection tracking for new URL
         isScriptInjectedRef.current = false;
         lastInjectedUrlRef.current = '';
-        
+
         webviewRef.current.src = formattedUrl;
       } else {
         toast.error('Invalid URL format');
@@ -585,11 +719,11 @@ const handleGenerate = () => {
       if (formattedUrl) {
         console.log('Navigating to:', formattedUrl);
         setIsLoading(true);
-        
+
         // Reset injection tracking for new URL
         isScriptInjectedRef.current = false;
         lastInjectedUrlRef.current = '';
-        
+
         webviewRef.current.src = formattedUrl;
       } else {
         toast.error('Please enter a valid URL (e.g., example.com or https://example.com)');
@@ -611,6 +745,9 @@ const handleGenerate = () => {
     setLeftPanelCollapsed(!isLeftPanelCollapsed);
   };
 
+  const deleteTimelineEvent = (id: string) => {
+    setTimelineEvents(prev => prev.filter(event => event.id !== id));
+  };
   return (
     <div className="flex h-screen bg-background">
       <PanelGroup direction="horizontal" onLayout={handlePanelResize}>
@@ -629,9 +766,9 @@ const handleGenerate = () => {
           <div className="h-full flex flex-col border-r bg-card/50 backdrop-blur-sm">
             {/* Header */}
             <div className="border-b bg-background/80 backdrop-blur-sm">
-              <div className="p-3 flex items-center justify-between">
+              <div className="px-3 py-1 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Button
+                  {/* <Button
                     variant="ghost"
                     size="icon"
                     onClick={toggleLeftPanel}
@@ -642,12 +779,13 @@ const handleGenerate = () => {
                     ) : (
                       <PanelLeftClose className="h-4 w-4" />
                     )}
-                  </Button>
+                  </Button> */}
                   {!isLeftPanelCollapsed && (
                     <>
                       <div className="flex items-center">
-                         <h1 className="text-lg font-semibold">testNova </h1>
-                     <TestTubeDiagonal className="mt-[11px]" /> <Sparkles />
+                        <h1 className="text-lg font-semibold">testNova </h1>
+                        {/* <TestTubeDiagonal className="mt-[11px]" /> <Sparkles className='h-4 w-5' />  */}
+                        <img src='src/desktop-icons/test-nova-icon.png' className='ml-1 h-8 w-10' />
                       </div>
                       <Badge variant={isRecording ? "destructive" : "secondary"} className="ml-2 theme-badge-secondary">
                         {isRecording ? (
@@ -665,9 +803,9 @@ const handleGenerate = () => {
                 {!isLeftPanelCollapsed && (
                   <div className="flex items-center gap-1">
                     <ThemeToggle />
-                    <Button onClick={toggleDevTools} variant="ghost" size="icon" className="h-8 w-8 theme-button-outline">
+                    {/* <Button onClick={toggleDevTools} variant="ghost" size="icon" className="h-8 w-8 theme-button-outline">
                       <Bug className="h-4 w-4" />
-                    </Button>
+                    </Button> */}
                   </div>
                 )}
               </div>
@@ -712,11 +850,20 @@ const handleGenerate = () => {
                         {currentProject && (
                           <div className="p-2 bg-primary/5 border border-primary/20 rounded-lg theme-card">
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
+                              {/* <div className="flex items-center gap-2">
                                 <div className={`w-4 h-4 rounded ${currentProject.color || 'bg-blue-500'} flex items-center justify-center text-white text-xs font-semibold`}>
                                   {currentProject.name.charAt(0).toUpperCase()}
                                 </div>
                                 <span className="text-sm font-medium truncate">{currentProject.name}</span>
+                              </div> */}
+                              <div className="flex items-center gap-2 pl-2">
+                                <div className={`w-6 h-6 rounded ${currentProject.color || 'bg-blue-500'} flex items-center justify-center text-white text-xs font-semibold`}>
+                                  {currentProject.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <h2 className="text-lg font-semibold">{currentProject.name}</h2>
+                                  <p className="text-xs text-muted-foreground">Test Library</p>
+                                </div>
                               </div>
                               {currentTest && (
                                 <div className="flex items-center gap-2">
@@ -762,7 +909,7 @@ const handleGenerate = () => {
                             >
                               <RotateCcw className="h-4 w-4" />
                             </Button>
-                            <Button
+                            {/* <Button
                               onClick={handleSaveTest}
                               variant="outline"
                               size="sm"
@@ -770,15 +917,25 @@ const handleGenerate = () => {
                               className="theme-button-outline"
                             >
                               <Save className="h-4 w-4" />
-                            </Button>
+                            </Button> */}
                             <Button
                               onClick={handleGenerate}
                               variant="default"
-                              disabled={steps.length === 0 || !currentProject || isLoading||isGenerateLoading}
-                              className="theme-button-primary"
+                              disabled={steps.length === 0 || !currentProject || isLoading || isGenerateLoading}
+                              className="bg-cyan-800 hover:bg-cyan-500"
                             >
-                             {isGenerateLoading ?<> Generating <LoaderIcon className="animate-spin ml-2 h-4 w-4" /></> : <> Generate <Sparkles className="ml-2 h-4 w-4" /></>}
+                              {isGenerateLoading ? <> Generating <LoaderIcon className="animate-spin ml-2 h-4 w-4" /></> : <> Generate <Sparkles className="ml-2 h-4 w-4" /></>}
                             </Button>
+                            {/* <Button
+                              onClick={handleGenerate}
+                              variant="default"
+                              disabled={ !currentProject || isLoading|| isGenerateLoading}
+
+                            >
+                             
+                             {isGenerateLoading ?<> Generating <LoaderIcon className="animate-spin ml-2 h-4 w-4" /></> : <> {result.length>0 ?"Re-Generate":"Generate"} <Sparkles className="ml-2 h-4 w-4" /></>}
+
+                            </Button> */}
                           </div>
                         )}
 
@@ -852,15 +1009,15 @@ const handleGenerate = () => {
                                   key={event.id}
                                   className="relative group"
                                 >
-                                  <div className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer theme-card"
-                                    onClick={() => {
+                                  <div className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50  theme-card"
+
+                                  >
+                                    <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors cursor-pointer ${getEventColor(event.type)}`} onClick={() => {
                                       if (event.details) {
                                         setSelectedEvent(event);
                                         setIsDetailsOpen(true);
                                       }
-                                    }}
-                                  >
-                                    <div className={`w-8 h-8 rounded-full border flex items-center justify-center ${getEventColor(event.type)}`}>
+                                    }}>
                                       {event.icon}
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -875,8 +1032,11 @@ const handleGenerate = () => {
                                       </Badge>
                                     </div>
                                     {event.details && (
-                                      <Eye className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                      <X className="h-4 w-4 text-muted-foreground cursor-pointer" onClick={() => deleteTimelineEvent(event.id)} />
                                     )}
+                                    {/* {event.details && (
+                                      <Eye className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    )} */}
                                   </div>
                                   {index !== timelineEvents.length - 1 && (
                                     <div className="absolute left-7 top-14 bottom-0 w-[1px] bg-border" />
@@ -898,9 +1058,19 @@ const handleGenerate = () => {
                                 <p className="text-xs">Record interactions and generate to see tests</p>
                               </div>
                             ) : (
-                               <pre className="text-xs p-2 bg-muted rounded overflow-x-auto theme-muted">
+                              <div>
+                                <Button
+                                  onClick={handleGenerateStepDefCode}
+                                  variant="default"
+                                  disabled={result.length === 0 || isSelenumCodeFetching}
+                                  className="bg-green-800 hover:bg-green-500 mb-2"
+                                >
+                                  {isSelenumCodeFetching ? <> Generating Code <LoaderIcon className="animate-spin ml-2 h-4 w-4" /></> : <> Generate Step Definitions Code <Code className="ml-2 h-4 w-4" /></>}
+                                </Button>
+                                <pre className="text-xs p-2 bg-muted rounded overflow-x-auto theme-muted">
                                   {result}
-                                  </pre>
+                                </pre>
+                              </div>
                             )}
                           </div>
                         </ScrollArea>
@@ -929,27 +1099,24 @@ const handleGenerate = () => {
               <div className="flex">
                 <button
                   onClick={() => setRightPanelTab('browser')}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors theme-tab ${
-                    rightPanelTab === 'browser' ? 'theme-tab-active' : ''
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors theme-tab ${rightPanelTab === 'browser' ? 'theme-tab-active' : ''
+                    }`}
                 >
                   <Globe className="h-3.5 w-3.5" />
                   Browser
                 </button>
                 <button
                   onClick={() => setRightPanelTab('code')}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors theme-tab ${
-                    rightPanelTab === 'code' ? 'theme-tab-active' : ''
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors theme-tab ${rightPanelTab === 'code' ? 'theme-tab-active' : ''
+                    }`}
                 >
                   <FileCode className="h-3.5 w-3.5" />
                   Code
                 </button>
                 <button
                   onClick={() => setRightPanelTab('report')}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors theme-tab ${
-                    rightPanelTab === 'report' ? 'theme-tab-active' : ''
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors theme-tab ${rightPanelTab === 'report' ? 'theme-tab-active' : ''
+                    }`}
                 >
                   <FileText className="h-3.5 w-3.5" />
                   Test Report
@@ -962,7 +1129,7 @@ const handleGenerate = () => {
               {/* Browser Tab */}
               {rightPanelTab === 'browser' && (
                 <div className="absolute inset-0">
-                  <BrowserPanel 
+                  <BrowserPanel
                     webviewRef={webviewRef}
                     isLeftPanelCollapsed={isLeftPanelCollapsed}
                     toggleLeftPanel={toggleLeftPanel}
@@ -976,14 +1143,14 @@ const handleGenerate = () => {
               {/* Code Tab */}
               {rightPanelTab === 'code' && (
                 <div className="absolute inset-0 bg-background">
-                  <CodePanel isActive={true} />
+                  <CodePanel isActive={true} code={selenumCodeData?.result} handleRunInitiateTestRun={handleRunInitiateTestRun} isRunInitiateTestRun={isrunSeleniumCodeFetching} />
                 </div>
               )}
 
               {/* Report Tab */}
               {rightPanelTab === 'report' && (
                 <div className="absolute inset-0 bg-background">
-                  <TestReportPanel isActive={true} />
+                  <TestReportPanel isActive={true} htmlReport={testHTMLReport} isrunSeleniumCodeFetching={isrunSeleniumCodeFetching} isrunSeleniumCodeSuccess={isrunSeleniumCodeSuccess} isrunSeleniumCodeError={isrunSeleniumCodeError} />
                 </div>
               )}
             </div>
@@ -993,7 +1160,7 @@ const handleGenerate = () => {
 
       {/* Event Details Modal */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="max-w-2xl theme-card">
+        <DialogContent className="max-w-2xl ">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5" />
@@ -1046,6 +1213,46 @@ const handleGenerate = () => {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+
+      {/* Prompt Modal */}
+
+
+
+      <Dialog open={isPromptDialogOpen} onOpenChange={setIsPromptDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ChatBubbleIcon className="h-5 w-5" />
+              Prompt Test changes
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 ">
+
+              <div>
+                {/* <Label htmlFor="test-description">Prompt changes</Label> */}
+                <Textarea
+                  id="test-description"
+                  value={promptText || ''}
+                  onChange={(e) => setPromptText(e.target.value)}
+                  placeholder="Prompt test case changes..."
+                  rows={3}
+                />
+              </div>
+
+
+              <div className="flex justify-end gap-2 pt-4">
+
+                <Button onClick={handleGenerate} disabled={result.length === 0}>
+                  {'Re-Generate'}
+                </Button>
+              </div>
+            </div>
+          </div>
+
         </DialogContent>
       </Dialog>
     </div>

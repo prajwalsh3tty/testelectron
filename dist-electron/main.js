@@ -12,6 +12,7 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1600,
     height: 900,
+    icon: path.join(__dirname, "../src/desktop-icons/test-nova-icon.png"),
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
