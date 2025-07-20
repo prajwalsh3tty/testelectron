@@ -1,4 +1,4 @@
-import { SavedTest, TestCollection, Project } from '@/types/recorder';
+import { SavedTest, TestCollection, Project } from '@/entities/types/recorder';
 
 const STORAGE_KEYS = {
   TESTS: 'test-recorder-tests',
