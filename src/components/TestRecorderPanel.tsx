@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
+import testNovaLogo from '../assets/test-nova-icon.png'
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -117,7 +118,7 @@ export function TestRecorderPanel() {
 
   // Timeline tabs state
   const [timelineTabs, setTimelineTabs] = useState<TimelineTab[]>([
-    { id: "event-1", name: "Event 1", events: [] },
+    { id: "event-1", name: "Activity 1", events: [] },
   ]);
   const [activeTimelineTab, setActiveTimelineTab] = useState("event-1");
   const [tabScrollPosition, setTabScrollPosition] = useState(0);
@@ -235,27 +236,41 @@ export function TestRecorderPanel() {
             const eventDetails = recordedEvent.details || {};
             const textContent =
               eventDetails.placeholder || eventDetails.text || "";
-            const elementId = eventDetails.id || eventDetails.name || "";
+            const elementId = eventDetails.id || "";
+            const elementName = eventDetails.name || "";
             const elementPath = eventDetails.xpath || "";
-            const parts = [eventType];
+            const elementTagName = eventDetails.tagName || "";
 
-            if (textContent) {
-              parts.push(`with text "${textContent}"`);
+            const parts = [recordedEvent.type === 'navigation' ? '' : recordedEvent.type];
+            console.log("tpe------------", eventType, recordedEvent);
+            if (eventType === 'navigation') {
+              parts.push(recordedEvent?.title)
+            }
+            if (elementTagName) {
+              parts.push(elementTagName);
             }
             if (elementId) {
-              parts.push(`on element "${elementId}"`);
+              parts.push(`on element ID ${elementId}`);
             }
+
+            if (elementName) {
+              parts.push(`on element name ${elementName}`);
+            }
+            if (textContent) {
+              parts.push(`with text ${textContent}`);
+            }
+
             if (elementPath) {
               parts.push(`at path: ${elementPath}`);
             }
 
             return parts.join(" ");
-          });
+          }).reverse();
 
           return {
             pageUrl: url,
-            action: recordedEventsList,
-            eventName: tab.name,
+            action: recordedEventsList
+
           };
         });
 
@@ -263,6 +278,14 @@ export function TestRecorderPanel() {
         requirements: currentTest?.description,
         activities: activities,
       };
+      console.log("acrtivies-------", activities)
+      // const initData = {
+      //   requirements: currentTest?.description,
+      //   activities: [{
+      //     pageUrl: url,
+      //     action: activities
+      //   }]
+      // };
 
       setisGenerateLoading(true);
       setIsPromptDialogOpen(false);
@@ -313,7 +336,7 @@ export function TestRecorderPanel() {
       runSeleniumCodeRefetch();
       setTestHTMLReport(
         "http://172.18.104.22:5001/api/TestNova/fetchhtmlreport?uniqueId=" +
-          fileId,
+        fileId,
       );
       setRightPanelTab("report");
     }
@@ -342,7 +365,7 @@ export function TestRecorderPanel() {
     const newTabNumber = timelineTabs.length + 1;
     const newTab: TimelineTab = {
       id: `event-${newTabNumber}`,
-      name: `Event ${newTabNumber}`,
+      name: `Activity ${newTabNumber}`,
       events: [],
     };
     setTimelineTabs((prev) => [...prev, newTab]);
@@ -382,8 +405,8 @@ export function TestRecorderPanel() {
   const canScrollLeft = tabScrollPosition > 0;
   const canScrollRight = tabsContainerRef.current
     ? tabScrollPosition <
-      tabsContainerRef.current.scrollWidth -
-        tabsContainerRef.current.clientWidth
+    tabsContainerRef.current.scrollWidth -
+    tabsContainerRef.current.clientWidth
     : false;
 
   // URL validation helper
@@ -545,11 +568,11 @@ export function TestRecorderPanel() {
       prev.map((tab) =>
         tab.id === activeTimelineTab
           ? {
-              ...tab,
-              events: [newEvent, ...tab.events].sort(
-                (a, b) => b.timestamp - a.timestamp,
-              ),
-            }
+            ...tab,
+            events: [newEvent, ...tab.events].sort(
+              (a, b) => b.timestamp - a.timestamp,
+            ),
+          }
           : tab,
       ),
     );
@@ -653,7 +676,7 @@ export function TestRecorderPanel() {
 
   const handleStartRecording = () => {
     console.log("Starting recording");
-    testRecorder.clearEvents();
+    // testRecorder.clearEvents();
     // Clear all timeline tabs
     setTimelineTabs((prev) => prev.map((tab) => ({ ...tab, events: [] })));
     lastEventRef.current = null;
@@ -843,9 +866,9 @@ export function TestRecorderPanel() {
       prev.map((tab) =>
         tab.id === tabId
           ? {
-              ...tab,
-              events: tab.events.filter((event) => event.id !== eventId),
-            }
+            ...tab,
+            events: tab.events.filter((event) => event.id !== eventId),
+          }
           : tab,
       ),
     );
@@ -887,7 +910,7 @@ export function TestRecorderPanel() {
                       <div className="flex items-center">
                         <h1 className="text-lg font-semibold">testNova </h1>
                         <img
-                          src="src/desktop-icons/test-nova-icon.png"
+                          src={testNovaLogo}
                           className="ml-1 h-8 w-10"
                         />
                       </div>
@@ -960,9 +983,8 @@ export function TestRecorderPanel() {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2 pl-2">
                                 <div
-                                  className={`w-6 h-6 rounded ${
-                                    currentProject.color || "bg-blue-500"
-                                  } flex items-center justify-center text-white text-xs font-semibold`}
+                                  className={`w-6 h-6 rounded ${currentProject.color || "bg-blue-500"
+                                    } flex items-center justify-center text-white text-xs font-semibold`}
                                 >
                                   {currentProject.name.charAt(0).toUpperCase()}
                                 </div>
@@ -1075,7 +1097,7 @@ export function TestRecorderPanel() {
                         )}
 
                         {/* Stats - Only show when test is loaded */}
-                        {showTestTabs && (
+                        {/* {showTestTabs && (
                           <div className="flex gap-4 text-xs text-muted-foreground">
                             <div className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
@@ -1086,7 +1108,7 @@ export function TestRecorderPanel() {
                               {steps.length} steps
                             </div>
                           </div>
-                        )}
+                        )} */}
                       </div>
                     </>
                   )}
@@ -1135,12 +1157,13 @@ export function TestRecorderPanel() {
                               {/* Tabs container */}
                               <div
                                 ref={tabsContainerRef}
-                                className="flex-1 overflow-x-auto scrollbar-none"
-                                style={{
-                                  scrollbarWidth: "none",
-                                  msOverflowStyle: "none",
-                                }}
+                                className="flex-1 scrollbar-ultra-thin overflow-x-auto"
+                              // style={{
+                              //   scrollbarWidth: "none",
+                              //   msOverflowStyle: "none",
+                              // }}
                               >
+
                                 <div className="flex">
                                   {timelineTabs.map((tab) => (
                                     <button
@@ -1148,11 +1171,10 @@ export function TestRecorderPanel() {
                                       onClick={() =>
                                         setActiveTimelineTab(tab.id)
                                       }
-                                      className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                                        activeTimelineTab === tab.id
-                                          ? "border-primary text-primary bg-primary/5"
-                                          : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                                      }`}
+                                      className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTimelineTab === tab.id
+                                        ? "border-primary text-primary bg-primary/5"
+                                        : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                                        }`}
                                     >
                                       <span>{tab.name}</span>
                                       {tab.events.length > 0 && (
@@ -1256,7 +1278,7 @@ export function TestRecorderPanel() {
                                             {event.type}
                                           </Badge>
                                         </div>
-                                        {event.details && (
+                                        {(
                                           <X
                                             className="h-4 w-4 text-muted-foreground cursor-pointer"
                                             onClick={() =>
@@ -1270,8 +1292,8 @@ export function TestRecorderPanel() {
                                       </div>
                                       {index !==
                                         getActiveTabEvents().length - 1 && (
-                                        <div className="absolute left-7 top-14 bottom-0 w-[1px] bg-border" />
-                                      )}
+                                          <div className="absolute left-7 top-14 bottom-0 w-[1px] bg-border" />
+                                        )}
                                     </div>
                                   ))
                                 )}
@@ -1353,27 +1375,26 @@ export function TestRecorderPanel() {
               <div className="flex">
                 <button
                   onClick={() => setRightPanelTab("browser")}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors theme-tab ${
-                    rightPanelTab === "browser" ? "theme-tab-active" : ""
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors theme-tab ${rightPanelTab === "browser" ? "theme-tab-active" : ""
+                    }`}
                 >
                   <Globe className="h-3.5 w-3.5" />
                   Browser
                 </button>
                 <button
+                  disabled={selenumCodeData?.result?.length === 0 || result.length === 0}
                   onClick={() => setRightPanelTab("code")}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors theme-tab ${
-                    rightPanelTab === "code" ? "theme-tab-active" : ""
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors theme-tab ${rightPanelTab === "code" ? "theme-tab-active" : ""
+                    }`}
                 >
                   <FileCode className="h-3.5 w-3.5" />
                   Code
                 </button>
                 <button
+                  disabled={!isrunSeleniumCodeSuccess || result.length === 0}
                   onClick={() => setRightPanelTab("report")}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors theme-tab ${
-                    rightPanelTab === "report" ? "theme-tab-active" : ""
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors theme-tab ${rightPanelTab === "report" ? "theme-tab-active" : ""
+                    }`}
                 >
                   <FileText className="h-3.5 w-3.5" />
                   Test Report
@@ -1548,6 +1569,6 @@ export function TestRecorderPanel() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   );
 }

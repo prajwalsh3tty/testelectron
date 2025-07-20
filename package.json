@@ -103,7 +103,7 @@
       "target": "nsis",
       "signAndEditExecutable": false,
       "verifyUpdateCodeSignature": false,
-      "icon": "src/desktop-icons/test-nova-icon@3x.png"
+      "icon": "build-assets/icon.ico"
     
     },
     "nsis": {
@@ -114,11 +114,11 @@
     },
     "mac": {
       "category": "public.app-category.developer-tools",
-      "icon": "desktop-icons/icon.ico"
+      "icon": "build-assets/icon.png"
     },
     "linux": {
       "target": "AppImage",
-      "icon": "desktop-icons/icon.ico"
+      "icon": "build-assets/icon.png"
     }
   }
 }
