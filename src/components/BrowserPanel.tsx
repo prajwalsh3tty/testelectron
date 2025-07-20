@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
-import { Button } from './ui/button';
+import { Button } from '@/components/ui/button';
 import { PanelLeftOpen, AlertCircle, RefreshCw } from 'lucide-react';
-import { Alert, AlertDescription } from './ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface BrowserPanelProps {
   webviewRef: React.RefObject<HTMLWebViewElement>;

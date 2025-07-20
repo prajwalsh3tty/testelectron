@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
-import { ScrollArea } from './ui/scroll-area';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Textarea } from './ui/textarea';
-import { Label } from './ui/label';
-import { Separator } from './ui/separator';
-import { useProjects } from '@/features/project-management/hooks';
-import { Project } from '@/shared/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { testStorage } from '@/lib/test-storage';
+import { Project } from '@/types/recorder';
 import {
   Search,
   Plus,
@@ -35,7 +35,7 @@ import {
   TestTube2,
   ArrowRight
 } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface ProjectLibraryProps {
   onSelectProject: (project: Project) => void;
@@ -55,17 +55,9 @@ const PROJECT_COLORS = [
 ];
 
 export function ProjectLibrary({ onSelectProject }: ProjectLibraryProps) {
-  const {
-    projects,
-    loadProjects,
-    saveProject,
-    deleteProject,
-    duplicateProject,
-    getProjectStats,
-    exportProject,
-  } = useProjects();
-
+  const [projects, setProjects] = useState<Project[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  // const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -73,11 +65,18 @@ export function ProjectLibrary({ onSelectProject }: ProjectLibraryProps) {
 
   useEffect(() => {
     loadProjects();
-  }, [loadProjects]);
+  }, []);
+
+  const loadProjects = () => {
+    const allProjects = testStorage.getAllProjects();
+    setProjects(allProjects.sort((a, b) => b.updatedAt - a.updatedAt));
+  };
 
   const filteredProjects = projects.filter(project => {
     const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       project.description.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
 
     return matchesSearch;
   });
@@ -96,17 +95,22 @@ export function ProjectLibrary({ onSelectProject }: ProjectLibraryProps) {
       color: editingProject.color || PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)]
     };
 
-    saveProject(projectToSave);
+    testStorage.saveProject(projectToSave);
+    loadProjects();
     setIsEditDialogOpen(false);
     setEditingProject({});
   };
 
   const handleDeleteProject = (projectId: string) => {
-    deleteProject(projectId);
+    testStorage.deleteProject(projectId);
+    loadProjects();
   };
 
   const handleDuplicateProject = (projectId: string) => {
-    duplicateProject(projectId);
+    const duplicated = testStorage.duplicateProject(projectId);
+    if (duplicated) {
+      loadProjects();
+    }
   };
 
   const handleEditProject = (project: Project) => {
@@ -141,9 +145,9 @@ export function ProjectLibrary({ onSelectProject }: ProjectLibraryProps) {
     }
   };
 
-  const handleExportProject = (projectId: string) => {
-    const data = exportProject(projectId);
-    const project = projects.find(p => p.id === projectId);
+  const exportProject = (projectId: string) => {
+    const data = testStorage.exportProject(projectId);
+    const project = testStorage.getProject(projectId);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -154,6 +158,37 @@ export function ProjectLibrary({ onSelectProject }: ProjectLibraryProps) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
+  const exportAllProjects = () => {
+    const data = testStorage.exportAllData();
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `all-projects-export-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const importProjects = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      const result = testStorage.importAllData(content);
+      if (result.success) {
+        loadProjects();
+      }
+      alert(result.message);
+    };
+    reader.readAsText(file);
+  };
+
+  const stats = testStorage.getGlobalStats();
 
   return (
     <div className="h-full flex flex-col">
@@ -176,8 +211,53 @@ export function ProjectLibrary({ onSelectProject }: ProjectLibraryProps) {
               <Plus className="h-4 w-4 mr-1" />
               New Project
             </Button>
+            {/* <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportAllProjects}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export All Projects
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <label className="flex items-center cursor-pointer">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import Projects
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={importProjects}
+                      className="hidden"
+                    />
+                  </label>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu> */}
           </div>
         </div>
+
+        {/* Global Stats */}
+        {/* <div className="grid grid-cols-4 gap-2 mb-4">
+          <div className="text-center p-2 bg-card rounded-lg border">
+            <div className="text-lg font-semibold text-primary">{stats.totalProjects}</div>
+            <div className="text-xs text-muted-foreground">Projects</div>
+          </div>
+          <div className="text-center p-2 bg-card rounded-lg border">
+            <div className="text-lg font-semibold text-green-600">{stats.totalTests}</div>
+            <div className="text-xs text-muted-foreground">Tests</div>
+          </div>
+          <div className="text-center p-2 bg-card rounded-lg border">
+            <div className="text-lg font-semibold text-blue-600">{stats.activeProjects}</div>
+            <div className="text-xs text-muted-foreground">Active</div>
+          </div>
+          <div className="text-center p-2 bg-card rounded-lg border">
+            <div className="text-lg font-semibold text-purple-600">{stats.totalSteps}</div>
+            <div className="text-xs text-muted-foreground">Steps</div>
+          </div>
+        </div> */}
 
         {/* Search and Filters */}
         <div className="flex gap-2">
@@ -190,6 +270,17 @@ export function ProjectLibrary({ onSelectProject }: ProjectLibraryProps) {
               className="pl-9 h-8"
             />
           </div>
+          {/* <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-32 h-8">
+              <Filter className="h-3 w-3 mr-1" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="archived">Archived</SelectItem>
+            </SelectContent>
+          </Select> */}
         </div>
       </div>
 
@@ -204,7 +295,7 @@ export function ProjectLibrary({ onSelectProject }: ProjectLibraryProps) {
             </div>
           ) : (
             filteredProjects.map((project) => {
-              const projectStats = getProjectStats(project.id);
+              const projectStats = testStorage.getProjectStats(project.id);
               return (
                 <Card
                   key={project.id}
@@ -266,7 +357,7 @@ export function ProjectLibrary({ onSelectProject }: ProjectLibraryProps) {
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={(e) => {
                             e.stopPropagation();
-                            handleExportProject(project.id);
+                            exportProject(project.id);
                           }}>
                             <Download className="h-4 w-4 mr-2" />
                             Export
@@ -368,6 +459,21 @@ export function ProjectLibrary({ onSelectProject }: ProjectLibraryProps) {
                   placeholder="Enter project name"
                 />
               </div>
+              {/* <div>
+                <Label htmlFor="project-status">Status</Label>
+                <Select
+                  value={editingProject.status || 'active'}
+                  onValueChange={(value) => setEditingProject({ ...editingProject, status: value as Project['status'] })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div> */}
             </div>
 
             <div>
@@ -473,7 +579,7 @@ export function ProjectLibrary({ onSelectProject }: ProjectLibraryProps) {
                   <Label className="text-sm font-medium">Project Statistics</Label>
                   <div className="grid grid-cols-3 gap-4 mt-2">
                     {(() => {
-                      const stats = getProjectStats(selectedProject.id);
+                      const stats = testStorage.getProjectStats(selectedProject.id);
                       return (
                         <>
                           <div className="text-center p-3 bg-card rounded-lg border">
