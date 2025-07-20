@@ -167,7 +167,7 @@ export function TestRecorderPanel() {
     toast.success('Test saved successfully');
   };
 
-  // Listen for console messages from webview - THIS IS THE ORIGINAL RECORDING LOGIC
+  // Listen for console messages from webview - ORIGINAL RECORDING LOGIC
   useEffect(() => {
     const webview = webviewRef.current;
     if (!webview) return;

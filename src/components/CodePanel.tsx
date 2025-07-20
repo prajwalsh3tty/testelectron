@@ -18,92 +18,6 @@ export function CodePanel({ isActive, code, isRunInitiateTestRun, handleRunIniti
   const editorRef = useRef<any>(null);
   const { theme } = useTheme();
 
-  // Sample Java code
-  //   const sampleJavaCode = `package com.example.test;
-
-  // import org.junit.jupiter.api.Test;
-  // import org.junit.jupiter.api.BeforeEach;
-  // import org.junit.jupiter.api.AfterEach;
-  // import org.openqa.selenium.WebDriver;
-  // import org.openqa.selenium.WebElement;
-  // import org.openqa.selenium.By;
-  // import org.openqa.selenium.chrome.ChromeDriver;
-  // import org.openqa.selenium.support.ui.WebDriverWait;
-  // import org.openqa.selenium.support.ui.ExpectedConditions;
-  // import java.time.Duration;
-
-  // public class AutomatedTest {
-
-  //     private WebDriver driver;
-  //     private WebDriverWait wait;
-
-  //     @BeforeEach
-  //     public void setUp() {
-  //         // Initialize ChromeDriver
-  //         driver = new ChromeDriver();
-  //         wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-  //         driver.manage().window().maximize();
-  //     }
-
-  //     @Test
-  //     public void testUserLogin() {
-  //         // Navigate to the application
-  //         driver.get("https://example.com/login");
-
-  //         // Find and interact with login elements
-  //         WebElement usernameField = wait.until(
-  //             ExpectedConditions.presenceOfElementLocated(By.id("username"))
-  //         );
-  //         WebElement passwordField = driver.findElement(By.id("password"));
-  //         WebElement loginButton = driver.findElement(By.xpath("//button[@type='submit']"));
-
-  //         // Perform login actions
-  //         usernameField.sendKeys("testuser@example.com");
-  //         passwordField.sendKeys("password123");
-  //         loginButton.click();
-
-  //         // Verify successful login
-  //         WebElement dashboard = wait.until(
-  //             ExpectedConditions.presenceOfElementLocated(By.className("dashboard"))
-  //         );
-
-  //         assert dashboard.isDisplayed() : "Dashboard should be visible after login";
-  //     }
-
-  //     @Test
-  //     public void testFormSubmission() {
-  //         driver.get("https://example.com/form");
-
-  //         // Fill out form fields
-  //         driver.findElement(By.name("firstName")).sendKeys("John");
-  //         driver.findElement(By.name("lastName")).sendKeys("Doe");
-  //         driver.findElement(By.name("email")).sendKeys("john.doe@example.com");
-
-  //         // Select dropdown option
-  //         WebElement dropdown = driver.findElement(By.id("country"));
-  //         dropdown.click();
-  //         driver.findElement(By.xpath("//option[@value='US']")).click();
-
-  //         // Submit form
-  //         driver.findElement(By.xpath("//button[contains(text(), 'Submit')]")).click();
-
-  //         // Verify success message
-  //         WebElement successMessage = wait.until(
-  //             ExpectedConditions.presenceOfElementLocated(
-  //                 By.xpath("//div[contains(@class, 'success')]")
-  //             )
-  //         );
-
-  //         assert successMessage.getText().contains("Form submitted successfully");
-  //     }
-
-  //     @AfterEach
-  //     public void tearDown() {
-  //         if (driver != null) {
-  //             driver.quit();
-  //         }
-  //     }
-  // }`;
   const sampleJavaCode = `package stepdefinitions;
 
 import org.openqa.selenium.By;
@@ -227,8 +141,8 @@ public class StepDefinitions_1 {
 
   // Initialize Java code state
   useEffect(() => {
-    setJavaCode(code);
-  }, []);
+    setJavaCode(code || sampleJavaCode);
+  }, [code]);
 
   // Initialize Monaco Editor with memory-efficient configuration
   useEffect(() => {
@@ -271,9 +185,7 @@ public class StepDefinitions_1 {
         const editor = monaco.editor.create(editorContainerRef.current, {
           value: javaCode,
           language: 'java',
-          // theme: theme === 'dark' ? 'vs-dark' : 'vs',
           theme: 'vs-dark',
-
           automaticLayout: true,
 
           // Memory-efficient options
