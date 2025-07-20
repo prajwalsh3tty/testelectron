@@ -1,7 +1,7 @@
 import { TestRecorderPanel } from '@/features/test-recorder/components';
 import { ThemeProvider } from '@/shared/components/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from '@/shared/components/ui';
+import { Toaster } from '@/components/ui/sonner';
 import './App.css';
 
 function App() {
