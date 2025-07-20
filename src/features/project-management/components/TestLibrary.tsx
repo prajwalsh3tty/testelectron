@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { testStorage } from '@/lib/test-storage';
-import { SavedTest, TestStep, Project } from '@/types/recorder';
+import { Button } from '@/shared/components/ui';
+import { Input } from '@/shared/components/ui';
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui';
+import { Badge } from '@/shared/components/ui';
+import { ScrollArea } from '@/shared/components/ui';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/components/ui';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/shared/components/ui';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui';
+import { Textarea } from '@/shared/components/ui';
+import { Label } from '@/shared/components/ui';
+import { Separator } from '@/shared/components/ui';
+import { useTests } from '../hooks';
+import { SavedTest, Project } from '@/shared/types';
 import {
   Search,
   Plus,
@@ -37,7 +37,7 @@ import {
   Calendar,
   ArrowLeft
 } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui';
 
 interface TestLibraryProps {
   onLoadTest: (test: SavedTest) => void;
@@ -47,7 +47,7 @@ interface TestLibraryProps {
 }
 
 export function TestLibrary({ onLoadTest, currentTest, currentProject, onBackToProjects }: TestLibraryProps) {
-  const [tests, setTests] = useState<SavedTest[]>([]);
+  const { tests, loadTests, saveTest, deleteTest, duplicateTest } = useTests(currentProject.id);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedTest, setSelectedTest] = useState<SavedTest | null>(null);
@@ -57,12 +57,7 @@ export function TestLibrary({ onLoadTest, currentTest, currentProject, onBackToP
 
   useEffect(() => {
     loadTests();
-  }, [currentProject.id]);
-
-  const loadTests = () => {
-    const projectTests = testStorage.getTestsByProject(currentProject.id);
-    setTests(projectTests.sort((a, b) => b.updatedAt - a.updatedAt));
-  };
+  }, [loadTests]);
 
   const filteredTests = tests.filter(test => {
     const matchesSearch = test.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -91,22 +86,17 @@ export function TestLibrary({ onLoadTest, currentTest, currentProject, onBackToP
       projectId: currentProject.id
     };
 
-    testStorage.saveTest(testToSave);
-    loadTests();
+    saveTest(testToSave);
     setIsEditDialogOpen(false);
     setEditingTest({});
   };
 
   const handleDeleteTest = (testId: string) => {
-    testStorage.deleteTest(testId);
-    loadTests();
+    deleteTest(testId);
   };
 
   const handleDuplicateTest = (testId: string) => {
-    const duplicated = testStorage.duplicateTest(testId);
-    if (duplicated) {
-      loadTests();
-    }
+    duplicateTest(testId);
   };
 
   const handleEditTest = (test: SavedTest) => {
@@ -130,51 +120,9 @@ export function TestLibrary({ onLoadTest, currentTest, currentProject, onBackToP
     }
   };
 
-  // const getStatusIcon = (status: SavedTest['testType']) => {
-  //   switch (status) {
-  //     case 'ready':
-  //       return <Exploratory className="h-3 w-3" />;
-  //     case 'archived':
-  //       return <Archive className="h-3 w-3" />;
-  //     default:
-  //       return <FileText className="h-3 w-3" />;
-  //   }
-  // };
-
-  const exportTests = () => {
-    const data = testStorage.exportProject(currentProject.id);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${currentProject.name}-tests-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const importTests = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
-      const result = testStorage.importProject(content);
-      if (result.success) {
-        loadTests();
-      }
-      alert(result.message);
-    };
-    reader.readAsText(file);
-  };
-
-  const stats = testStorage.getProjectStats(currentProject.id);
-
   return (
     <ScrollArea className="h-full flex flex-col">
-      <div >
+      <div>
         {/* Header */}
         <div className="p-4 border-b bg-background/80 backdrop-blur-sm">
           <div className="flex items-center justify-between mb-4">
@@ -188,15 +136,6 @@ export function TestLibrary({ onLoadTest, currentTest, currentProject, onBackToP
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Projects
               </Button>
-              {/* <div className="flex items-center gap-2">
-              <div className={`w-6 h-6 rounded ${currentProject.color || 'bg-blue-500'} flex items-center justify-center text-white text-xs font-semibold`}>
-                {currentProject.name.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold">{currentProject.name}</h2>
-                <p className="text-xs text-muted-foreground">Test Library</p>
-              </div>
-            </div> */}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -210,53 +149,8 @@ export function TestLibrary({ onLoadTest, currentTest, currentProject, onBackToP
                 <Plus className="h-4 w-4 mr-1" />
                 New Test
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={exportTests}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Tests
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <label className="flex items-center cursor-pointer">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Import Tests
-                      <input
-                        type="file"
-                        accept=".json"
-                        onChange={importTests}
-                        className="hidden"
-                      />
-                    </label>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
           </div>
-
-          {/* Stats */}
-          {/* <div className="grid grid-cols-4 gap-2 mb-4">
-          <div className="text-center p-2 bg-card rounded-lg border">
-            <div className="text-lg font-semibold text-primary">{stats.totalTests}</div>
-            <div className="text-xs text-muted-foreground">Total</div>
-          </div>
-          <div className="text-center p-2 bg-card rounded-lg border">
-            <div className="text-lg font-semibold text-green-600">{stats.readyTests}</div>
-            <div className="text-xs text-muted-foreground">Ready</div>
-          </div>
-          <div className="text-center p-2 bg-card rounded-lg border">
-            <div className="text-lg font-semibold text-yellow-600">{stats.draftTests}</div>
-            <div className="text-xs text-muted-foreground">Draft</div>
-          </div>
-          <div className="text-center p-2 bg-card rounded-lg border">
-            <div className="text-lg font-semibold text-blue-600">{stats.totalSteps}</div>
-            <div className="text-xs text-muted-foreground">Steps</div>
-          </div>
-        </div> */}
 
           {/* Search and Filters */}
           <div className="flex gap-2">
@@ -278,7 +172,6 @@ export function TestLibrary({ onLoadTest, currentTest, currentProject, onBackToP
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="Exploratory">Exploratory</SelectItem>
                 <SelectItem value="Functional">Functional</SelectItem>
-
               </SelectContent>
             </Select>
           </div>
@@ -305,9 +198,6 @@ export function TestLibrary({ onLoadTest, currentTest, currentProject, onBackToP
                       <div className="flex-1 min-w-0">
                         <CardTitle className="text-sm font-medium truncate flex items-center gap-2">
                           {test.name}
-                          {/* {currentTest?.id === test.id && (
-                          <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                        )} */}
                         </CardTitle>
                         {test.description && (
                           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
@@ -386,7 +276,6 @@ export function TestLibrary({ onLoadTest, currentTest, currentProject, onBackToP
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className={`text-xs ${getStatusColor(test.testType)}`}>
-
                           <span className="ml-1 capitalize">{test.testType}</span>
                         </Badge>
                         {test.tags.length > 0 && (
@@ -491,7 +380,7 @@ export function TestLibrary({ onLoadTest, currentTest, currentProject, onBackToP
                 <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleSaveTest} disabled={!editingTest.name?.trim() || !editingTest.description || editingTest?.status}>
+                <Button onClick={handleSaveTest} disabled={!editingTest.name?.trim() || !editingTest.description}>
                   {editingTest.id ? 'Update Test' : 'Create Test'}
                 </Button>
               </div>
@@ -515,7 +404,6 @@ export function TestLibrary({ onLoadTest, currentTest, currentProject, onBackToP
                     <div>
                       <Label className="text-sm font-medium">Status</Label>
                       <Badge variant="outline" className={`mt-1 ${getStatusColor(selectedTest.testType)}`}>
-                        {/* {getStatusIcon(selectedTest.testType)} */}
                         <span className="ml-1 capitalize">{selectedTest.testType}</span>
                       </Badge>
                     </div>

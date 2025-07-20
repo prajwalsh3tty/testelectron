@@ -1,7 +1,7 @@
-import { TestRecorderPanel } from '@/components/TestRecorderPanel';
-import { ThemeProvider } from '@/components/ui/theme-provider';
+import { TestRecorderPanel } from '@/features/test-recorder/components';
+import { ThemeProvider } from '@/shared/components/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from '@/components/ui/sonner';
+import { Toaster } from '@/shared/components/ui';
 import './App.css';
 
 function App() {
@@ -16,6 +16,7 @@ function App() {
       },
     },
   });
+  
   return (
     <ThemeProvider
       attribute="class"
@@ -29,7 +30,6 @@ function App() {
           <Toaster />
         </div>
       </QueryClientProvider>
-
     </ThemeProvider>
   );
 }

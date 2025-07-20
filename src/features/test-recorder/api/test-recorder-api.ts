@@ -1,4 +1,4 @@
-import { EventType, RecordedEvent, TestStep } from '@/types/recorder';
+import { EventType, RecordedEvent, TestStep } from '@/shared/types';
 
 class TestRecorder {
   private events: RecordedEvent[] = [];
