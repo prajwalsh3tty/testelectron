@@ -167,7 +167,7 @@ export function TestRecorderPanel() {
     toast.success('Test saved successfully');
   };
 
-  // Listen for console messages from webview
+  // Listen for console messages from webview - THIS IS THE ORIGINAL RECORDING LOGIC
   useEffect(() => {
     const webview = webviewRef.current;
     if (!webview) return;
@@ -354,7 +354,7 @@ export function TestRecorderPanel() {
                     )}
                   </div>
 
-                  {/* Recording Status */}
+                  {/* Recording Status - ORIGINAL RECORDING TIMELINE */}
                   {events.length > 0 && (
                     <div className="p-4 border-t bg-muted/30">
                       <Card>
