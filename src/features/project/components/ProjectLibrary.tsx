@@ -42,6 +42,7 @@ import {
   TestTube2,
   ArrowRight
 } from 'lucide-react';
+import { useRef } from 'react';
 
 interface ProjectLibraryProps {
   onSelectProject: (project: APIProject) => void;
@@ -72,6 +73,8 @@ export function ProjectLibrary({ onSelectProject }: ProjectLibraryProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Partial<APIProject>>({});
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<APIProject | null>(null);
 
   const filteredProjects = projects.filter(project => {
     const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -113,6 +116,11 @@ export function ProjectLibrary({ onSelectProject }: ProjectLibraryProps) {
   const handleViewProject = (project: APIProject) => {
     setSelectedProject(project);
     setIsViewDialogOpen(true);
+  };
+
+  const handleDeleteClick = (project: APIProject) => {
+    setProjectToDelete(project);
+    setDeleteDialogOpen(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -238,28 +246,10 @@ export function ProjectLibrary({ onSelectProject }: ProjectLibraryProps) {
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Project</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete "{project.name}"? This will also delete all tests and collections within this project. This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteProject(project.id)}>
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <DropdownMenuItem onClick={() => handleDeleteClick(project)}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -435,6 +425,23 @@ export function ProjectLibrary({ onSelectProject }: ProjectLibraryProps) {
           )}
         </DialogContent>
       </Dialog>
+      {/* AlertDialog outside DropdownMenu for reliability */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Project</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{projectToDelete?.name}"? This will also delete all tests and collections within this project. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (projectToDelete) handleDeleteProject(projectToDelete.id); setDeleteDialogOpen(false); }}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
